@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Missions Dashboard | EcoQuest</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root {
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.05);
+      --accent: #affc41;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      color: #fff;
+      font-family: 'Outfit', sans-serif;
+      overflow-x: hidden;
+    }
+
+    #games-video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: -1;
+    }
+
+    .hero-section {
+      padding: 100px 20px 60px;
+      text-align: center;
+      background: transparent;
+      position: relative;
+      z-index: 10;
+    }
+
+    .hero-section h1 {
+      font-size: clamp(3rem, 10vw, 5rem);
+      font-weight: 900;
+      letter-spacing: -4px;
+      line-height: 0.9;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+    }
+
+    .hero-section h1 span {
+      color: var(--accent);
+      text-shadow: 0 0 30px rgba(175, 252, 65, 0.5);
+    }
+
+    .hero-section p {
+      font-size: 1.2rem;
+      color: #fff;
+      opacity: 0.95;
+      max-width: 600px;
+      margin: 0 auto;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+    }
+
+    .missions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 25px;
+      padding: 40px;
+      max-width: 1400px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 10;
+    }
+
+    .mission-card {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 35px;
+      padding: 40px;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .mission-card:hover {
+      transform: translateY(-10px) scale(1.02);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--accent);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .m-icon {
+      font-size: 3rem;
+      margin-bottom: 10px;
+      filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.3));
+    }
+
+    .mission-card h3 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: -0.5px;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+    }
+
+    .mission-card p {
+      opacity: 0.9;
+      line-height: 1.6;
+      font-size: 1rem;
+      margin: 0;
+      color: #fff;
+      text-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
+    }
+
+    .m-action {
+      margin-top: auto;
+      font-weight: 900;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      color: var(--color);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+
+    .back-dash {
+      position: fixed;
+      top: 40px;
+      left: 40px;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 25px;
+      border-radius: 100px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      backdrop-filter: blur(10px);
+      transition: 0.3s;
+    }
+
+    .back-dash:hover {
+      background: #fff;
+      color: #000;
+    }
+
+    /* Colors */
+    .c-blue { --color: #00f2ff; }
+    .c-purple { --color: #bd00ff; }
+    .c-green { --color: #00ff55; }
+    .c-yellow { --color: #ffb700; }
+    .c-red { --color: #ff0077; }
+    .c-pink { --color: #ff0077; }
+    .c-teal { --color: #00ffa2; }
+
+    @media (max-width: 768px) {
+      .hero-section { padding-top: 120px; }
+      .missions-grid { padding: 20px; }
+      .back-dash { top: 20px; left: 20px; }
+    }
+  </style>
+</head>
+
+<body>
+  <video autoplay muted loop playsinline id="games-video">
+    <source src="kids.mp4" type="video/mp4">
+  </video>
+
+  <a href="student.html" class="back-dash">← Dashboard</a>
+
+  <div class="hero-section">
+    <h1>ECO<span>QUEST</span></h1>
+    <p>The planet's survival is in your hands. Pilot advanced environmental technology and restore global equilibrium.</p>
+  </div>
+
+  <div class="missions-grid">
+    <div class="mission-card c-blue" onclick="location.href='games/oceanCleaner.html'">
+      <div class="m-icon">🌊</div>
+      <h3>Ocean Cleanup</h3>
+      <p>Pilot an advanced nautical vessel to neutralize deep-sea plastic contamination and preserve marine biodiversity.</p>
+      <div class="m-action">Deploy Vessel →</div>
+    </div>
+
+    <div class="mission-card c-red" onclick="location.href='games/pollutionPatrol.html'">
+      <div class="m-icon">🚁</div>
+      <h3>Pollution Patrol</h3>
+      <p>Control a high-tech ECO-Drone to strafe and neutralize industrial toxic plumes before the AQI collapses.</p>
+      <div class="m-action">Scramble Drone →</div>
+    </div>
+
+    <div class="mission-card c-green" onclick="location.href='games/recycleSorter.html'">
+      <div class="m-icon">🏗️</div>
+      <h3>Master Sorter</h3>
+      <p>Manage high-velocity industrial conveyor belts. Rapidly categorize materials for advanced reclamation.</p>
+      <div class="m-action">Start Conveyor →</div>
+    </div>
+
+    <div class="mission-card c-yellow" onclick="location.href='games/ecoRunner.html'">
+      <div class="m-icon">🏃‍♂️</div>
+      <h3>Eco Runner</h3>
+      <p>Navigate a high-speed parallax landscape. Collect biological data while evading environmental hazards.</p>
+      <div class="m-action">Initiate Sprint →</div>
+    </div>
+
+    <div class="mission-card c-pink" onclick="location.href='games/treeTycoon.html'">
+      <div class="m-icon">🌳</div>
+      <h3>Eco Tycoon</h3>
+      <p>Construct a living isometric ecosystem. Manage carbon capture rates to maintain atmospheric stability.</p>
+      <div class="m-action">Seed Forest →</div>
+    </div>
+
+    <div class="mission-card c-teal" onclick="location.href='games/energySaver.html'">
+      <div class="m-icon">⚡</div>
+      <h3>Grid Guardian</h3>
+      <p>Balance residential energy distribution in real-time. Power down excessive loads to prevent a blackout.</p>
+      <div class="m-action">Stabilize Grid →</div>
+    </div>
+
+    <div class="mission-card c-blue" style="--color:#0077b6" onclick="location.href='games/waterSaver.html'">
+      <div class="m-icon">💧</div>
+      <h3>Hydro Grid</h3>
+      <p>Maintain the metropolitan water infrastructure. Patch high-pressure leaks and preserve vital reservoirs.</p>
+      <div class="m-action">Restore Pressure →</div>
+    </div>
+
+    <div class="mission-card c-yellow" style="--color:#f59e0b" onclick="location.href='games/wildlifeProtector.html'">
+      <div class="m-icon">🦊</div>
+      <h3>Wildlife Warden</h3>
+      <p>A climate-induced wildfire is threatening the habitat. Rescue endangered species and relocate them to safety.</p>
+      <div class="m-action">Start Rescue →</div>
+    </div>
+
+    <div class="mission-card c-teal" style="--color:#fbbf24" onclick="location.href='games/solarArchitect.html'">
+      <div class="m-icon">🏙️</div>
+      <h3>Solar Architect</h3>
+      <p>Transform the gray city into a renewable power house. Optimize roof-top solar placement for 100% efficiency.</p>
+      <div class="m-action">Design City →</div>
+    </div>
+  </div>
+
+  <nav class="navbar-mobile">
+    <div onclick="location.href='student.html'" class="nav-item">🏠</div>
+    <div onclick="location.href='games.html'" class="nav-item active">🎮</div>
+    <div onclick="location.href='learn.html'" class="nav-item">📚</div>
+    <div onclick="location.href='profile.html'" class="nav-item">👤</div>
+  </nav>
+</body>
+
+</html>

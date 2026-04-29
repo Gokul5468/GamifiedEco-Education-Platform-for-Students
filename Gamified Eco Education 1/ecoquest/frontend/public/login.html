@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Login | EcoQuest</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      background: #000;
+      padding: 20px;
+    }
+
+    #login-video {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      min-width: 100%;
+      min-height: 100%;
+      width: auto;
+      height: auto;
+      z-index: 0;
+      transform: translate(-50%, -50%);
+      object-fit: cover;
+    }
+
+    .glass-container {
+      background: transparent !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: none !important;
+      box-shadow: none !important;
+      position: relative;
+      z-index: 10;
+    }
+
+    .logo-text {
+      font-weight: 900;
+      font-size: 2.2rem;
+      letter-spacing: -2px;
+      margin-bottom: 30px;
+      text-align: center;
+      color: #fff;
+      text-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .logo-text span {
+      color: var(--accent);
+    }
+
+    h2, p {
+      text-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
+    }
+  </style>
+</head>
+
+<body>
+  <video autoplay muted loop playsinline id="login-video">
+    <source src="login.mp4" type="video/mp4">
+  </video>
+
+  <div class="glass-container">
+    <div class="logo-text">ECO<span>QUEST</span></div>
+
+    <div style="text-align:center; margin-bottom: 40px;">
+      <h2 style="font-size: 1.8rem; margin: 0; font-weight: 800; letter-spacing: -0.5px;">Welcome Back</h2>
+      <p style="opacity: 0.7; font-weight: 500; font-size: 0.95rem; margin-top: 5px;">Your green mission continues!</p>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Email Address</label>
+      <input id="email" type="email" class="input-field" placeholder="nature@eco.com" autocomplete="email">
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Password</label>
+      <input id="password" type="password" class="input-field" placeholder="••••••••">
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">School Code</label>
+      <input id="school_code" class="input-field" placeholder="E.g. SC20MP" oninput="checkSchoolCode()">
+      <p id="schoolMsg" style="font-size: 0.85rem; margin-top: 8px; font-weight: 600; min-height: 20px;"></p>
+    </div>
+
+    <button class="btn-premium" onclick="login()">Enter Ecosystem</button>
+    <p id="msg" style="text-align:center; margin-top: 20px; font-weight: 700; min-height: 20px; font-size: 0.95rem;">
+    </p>
+
+    <div
+      style="margin-top:35px; text-align:center; display: flex; flex-direction: column; gap: 15px; font-size: 0.95rem;">
+      <a href="signup.html" style="color: var(--accent); text-decoration: none; font-weight: 700;">New Ranger? Join
+        EcoQuest →</a>
+      <a href="index.html" style="color: #fff; text-decoration: none; opacity: 0.8; font-weight: 500;">Return to
+        Home</a>
+    </div>
+
+    <div id="verifyArea"
+      style="margin-top:30px; display:none; padding: 25px; background: transparent; border-radius: 20px; border: none;">
+      <p style="font-size: 0.9rem; margin-bottom: 15px; line-height: 1.5; color: var(--text-muted);">We sent a link to
+        your email. Click it, then click below to activate your profile:</p>
+      <button class="btn-premium"
+        style="font-size: 0.9rem; padding: 12px; margin-top: 0; background: #fff; color: #1b4332;"
+        onclick="createProfile()">I've Verified My Email</button>
+    </div>
+  </div>
+
+  <script>
+
+
+    async function checkSchoolCode() {
+      const codeRaw = document.getElementById("school_code").value.trim();
+      const code = codeRaw ? codeRaw.toUpperCase() : "";
+      document.getElementById("school_code").value = code;
+      const el = document.getElementById("schoolMsg");
+      if (!code) { el.innerText = ""; return; }
+
+      try {
+        const res = await fetch(`/api/checkSchoolCode?code=${encodeURIComponent(code)}`);
+        const j = await res.json();
+        if (j.exists) { el.style.color = "#affc41"; el.innerText = "✓ Found: " + j.school_name; }
+        else { el.style.color = "#ff5252"; el.innerText = "× Invalid school code"; }
+      } catch (err) { el.style.color = "#ff5252"; el.innerText = "! Connecting to server..."; }
+    }
+
+    async function login() {
+      const emailInput = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const school_code = document.getElementById("school_code").value.trim().toUpperCase();
+      const msg = document.getElementById("msg");
+
+      if (!emailInput || !password) {
+        msg.style.color = "#ff5252";
+        msg.innerText = "Email and Password required!";
+        return;
+      }
+
+      msg.style.color = "#fff";
+      msg.innerText = "Authenticating...";
+
+      try {
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: emailInput, password, school_code })
+        });
+
+        const j = await res.json();
+
+        if (j.email_not_confirmed) {
+          msg.style.color = "var(--accent)";
+          msg.innerText = "Email verification needed!";
+          document.getElementById("verifyArea").style.display = "block";
+          return;
+        }
+
+        if (j.role) {
+          localStorage.setItem("userEmail", emailInput);
+          localStorage.setItem("userRole", j.role);
+          msg.style.color = "#affc41";
+          msg.innerText = "Verified! Redirecting...";
+
+          setTimeout(() => {
+            if (j.role === "admin") window.location.href = "admin.html";
+            else if (j.role === "teacher") window.location.href = "teacher.html";
+            else window.location.href = "student.html";
+          }, 800);
+        } else {
+          msg.style.color = "#ff5252";
+          msg.innerText = j.error || "Login failed";
+        }
+      } catch (err) {
+        msg.style.color = "#ff5252";
+        msg.innerText = "Server offline";
+      }
+    }
+
+    async function createProfile() {
+      const emailInput = document.getElementById("email").value.trim();
+      const msg = document.getElementById("msg");
+      if (!emailInput) { msg.style.color = "#ff5252"; msg.innerText = "Enter your email first"; return; }
+
+      try {
+        const res = await fetch("/api/createProfile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: emailInput })
+        });
+
+        const j = await res.json();
+        if (j.profile || j.message === "Profile already exists") {
+          msg.style.color = "#affc41";
+          msg.innerText = "Account Activated! Login now.";
+          document.getElementById("verifyArea").style.display = "none";
+        } else {
+          msg.style.color = "#ff5252";
+          msg.innerText = j.error || "Please check your inbox first";
+        }
+      } catch (err) {
+        msg.style.color = "#ff5252";
+        msg.innerText = "Error encountered";
+      }
+    }
+  </script>
+</body>
+
+</html>

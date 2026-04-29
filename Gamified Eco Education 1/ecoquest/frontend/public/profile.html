@@ -1,0 +1,321 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Ranger Profile | EcoQuest</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .profile-hero {
+      text-align: center;
+      padding: 60px 40px;
+      background: var(--glass);
+      backdrop-filter: blur(25px);
+      border-radius: var(--card-radius);
+      border: 1px solid var(--glass-border);
+      margin-bottom: 40px;
+      margin-top: 60px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+      animation: fadeInDown 0.8s ease-out;
+    }
+
+    .profile-avatar {
+      width: 150px;
+      height: 150px;
+      border-radius: 50px;
+      background: linear-gradient(135deg, var(--accent) 0%, #ff8c00 100%);
+      margin: 0 auto 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4rem;
+      font-weight: 900;
+      color: #1b4332;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      border: 5px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .badge-collection {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+      gap: 20px;
+      margin-top: 40px;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 20px;
+    }
+
+    .badge-icon {
+      font-size: 2.2rem;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 12px;
+      border-radius: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: 0.3s;
+      cursor: help;
+    }
+
+    .badge-icon:hover {
+      transform: scale(1.1) rotate(5deg);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 22px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .stat-row span {
+      font-weight: 700;
+      opacity: 0.6;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+    }
+
+    .stat-row strong {
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+
+    .back-nav {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.6;
+      transition: 0.3s;
+      z-index: 100;
+    }
+
+    .back-nav:hover {
+      opacity: 1;
+      transform: translateX(-5px);
+    }
+
+    @media (max-width: 768px) {
+      .back-nav {
+        top: 20px;
+        left: 20px;
+        font-size: 0.9rem;
+      }
+
+      .profile-hero {
+        padding: 40px 20px;
+      }
+
+      .profile-avatar {
+        width: 120px;
+        height: 120px;
+        font-size: 3rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <a href="student.html" class="back-nav">← Dashboard</a>
+
+  <div class="dashboard-wrapper" style="max-width: 700px;">
+    <div class="profile-hero">
+      <div id="avatar" class="profile-avatar">EH</div>
+      <h2 id="fullName" style="font-size: 2.5rem; font-weight: 900; margin: 0; letter-spacing: -1.5px; color: #fff;">Eco
+        Hero</h2>
+      <p id="rank"
+        style="font-weight: 800; color: var(--accent); margin-top: 10px; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px;">
+        Legendary Ranger</p>
+
+      <div id="badgeCollection" class="badge-collection"></div>
+    </div>
+
+    <div class="glass-container" style="max-width: 100%; padding: 50px;">
+      <h3 style="margin-top: 0; font-weight: 900; font-size: 1.8rem; margin-bottom: 30px; letter-spacing: -0.5px;">
+        Identity Data</h3>
+
+      <div class="stat-row">
+        <span>Assigned School</span>
+        <strong id="schoolName" style="color: var(--accent);">EcoQuest Academy</strong>
+      </div>
+      <div class="stat-row">
+        <span>Current Class</span>
+        <strong id="className" style="color: #fff;">Ranger Corps A1</strong>
+      </div>
+      <div class="stat-row">
+        <span>Impact Assets</span>
+        <strong id="points" style="color: #affc41;">0</strong>
+      </div>
+      <div class="stat-row">
+        <span>Verified Email</span>
+        <strong id="emailDisplay" style="color: var(--text-muted); font-size: 1rem;">guest@ecoquest.com</strong>
+      </div>
+      <div class="stat-row">
+        <span>Day Streak</span>
+        <strong id="streakDisplay" style="color: #f97316;">🔥 0 days</strong>
+      </div>
+
+      <div style="margin-top:35px;">
+        <h3 style="font-weight:900; font-size:1.3rem; margin-bottom:12px; letter-spacing:-0.3px;">🏅 My Badges</h3>
+        <div id="badgeList" style="display:flex; flex-wrap:wrap; gap:10px; min-height:40px;">
+          <span style="opacity:0.4; font-size:0.9rem;">Loading badges...</span>
+        </div>
+      </div>
+
+      <div style="margin-top:35px;">
+        <h3 style="font-weight:900; font-size:1.3rem; margin-bottom:12px; letter-spacing:-0.3px;">🎮 Recent Games</h3>
+        <div id="recentGames" style="min-height:40px;">
+          <span style="opacity:0.4; font-size:0.9rem;">Loading history...</span>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px;">
+        <button class="btn-premium"
+          style="margin-top: 0; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff;"
+          onclick="alert('Profile editing is restricted for security.')">Edit Details</button>
+        <button class="btn-premium" style="margin-top: 0; background: #ff5252; color: #fff; border: none;"
+          onclick="logout()">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function logout() {
+      localStorage.clear();
+      window.location.href = 'login.html';
+    }
+
+    async function loadProfile() {
+      const email = localStorage.getItem('userEmail');
+      if (!email) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/profile?email=${encodeURIComponent(email)}`);
+        const data = await res.json();
+        if (res.status === 200) {
+          document.getElementById('fullName').innerText = data.full_name;
+          document.getElementById('schoolName').innerText = data.school_code || 'Global Central';
+          document.getElementById('className').innerText = data.class_name || 'Ranger Corps';
+          document.getElementById('points').innerText = (data.points ?? 0).toLocaleString();
+          document.getElementById('emailDisplay').innerText = email;
+          document.getElementById('streakDisplay').innerText = `🔥 ${data.streak || 0} day${(data.streak||0)!==1?'s':''}`;
+
+          const initials = data.full_name.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase();
+          document.getElementById('avatar').innerText = initials;
+
+          // Update rank label
+          const pts = data.points || 0;
+          const rank = pts >= 10000 ? 'Eco Legend 🦁' : pts >= 5000 ? 'Planet Saver 🌍' : pts >= 1000 ? 'Eco Champion 🏆' : pts >= 500 ? 'Green Warrior ⚔️' : pts >= 100 ? 'Eco Rookie 🐣' : 'Eco Ranger 🌱';
+          document.getElementById('rank').innerText = rank;
+
+          // Load badges
+          loadBadges(email);
+          // Load game history
+          loadGameHistory(email);
+        }
+      } catch (err) {
+        console.error("Profile load failed:", err);
+      }
+    }
+
+    async function loadBadges(email) {
+      const badgeList = document.getElementById('badgeList');
+      const badgeCollection = document.getElementById('badgeCollection');
+      try {
+        const res = await fetch(`/api/users/badges?email=${encodeURIComponent(email)}`);
+        const data = await res.json();
+        const badges = data.badges || [];
+        if (!badges.length) {
+          badgeList.innerHTML = '<span style="opacity:0.4;font-size:0.9rem;">No badges yet. Play games to earn them!</span>';
+          badgeCollection.innerHTML = '<div class="badge-icon" style="filter:grayscale(1);opacity:0.3;border-style:dashed;" title="Locked">🔒</div>';
+          return;
+        }
+        badgeList.innerHTML = '';
+        badgeCollection.innerHTML = '';
+        badges.forEach(b => {
+          // Pill in the badges section
+          const pill = document.createElement('div');
+          pill.title = b.badge_name;
+          pill.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:50px;padding:8px 16px;font-weight:700;font-size:0.9rem;';
+          pill.innerHTML = `${b.badge_emoji} ${b.badge_name}`;
+          badgeList.appendChild(pill);
+          // Icon in the hero collection
+          const icon = document.createElement('div');
+          icon.className = 'badge-icon';
+          icon.title = b.badge_name;
+          icon.innerText = b.badge_emoji;
+          badgeCollection.appendChild(icon);
+        });
+      } catch(e) {
+        badgeList.innerHTML = '<span style="opacity:0.4;font-size:0.9rem;">Could not load badges.</span>';
+      }
+    }
+
+    async function loadGameHistory(email) {
+      const el = document.getElementById('recentGames');
+      try {
+        const res = await fetch(`/api/users/gameHistory?email=${encodeURIComponent(email)}&limit=5`);
+        const data = await res.json();
+        const history = data.history || [];
+        if (!history.length) {
+          el.innerHTML = '<span style="opacity:0.4;font-size:0.9rem;">No games played yet. Start your first mission!</span>';
+          return;
+        }
+        el.innerHTML = '';
+        history.forEach(g => {
+          const date = g.played_at ? new Date(g.played_at).toLocaleDateString() : 'N/A';
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);';
+          row.innerHTML = `<div><div style="font-weight:700;">${g.game_name}</div><div style="font-size:0.75rem;opacity:0.4;">${date}</div></div><div style="font-weight:900;color:#affc41;">${g.score} pts</div>`;
+          el.appendChild(row);
+        });
+      } catch(e) {
+        el.innerHTML = '<span style="opacity:0.4;font-size:0.9rem;">Could not load game history.</span>';
+      }
+    }
+
+    // Populate Forest Background
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute';
+      tree.style.bottom = '0';
+      tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05';
+      tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+
+    window.addEventListener('load', loadProfile);
+  </script>
+</body>
+
+</html>
+

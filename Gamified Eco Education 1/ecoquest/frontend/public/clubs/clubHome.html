@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Club Home | EcoQuest</title>
+  <link rel="stylesheet" href="../style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .club-header-section {
+      text-align: center;
+      padding: 60px 40px;
+      background: var(--glass);
+      backdrop-filter: blur(25px);
+      border-radius: var(--card-radius);
+      border: 1px solid var(--glass-border);
+      margin-bottom: 50px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+      animation: fadeInDown 0.8s ease-out;
+    }
+
+    .section-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin: 40px 0 25px;
+      letter-spacing: -1px;
+      color: #fff;
+    }
+
+    .members-reel {
+      display: flex;
+      gap: 20px;
+      overflow-x: auto;
+      padding: 10px 5px 30px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent) transparent;
+    }
+
+    .member-mini-card {
+      background: var(--glass);
+      padding: 25px;
+      border-radius: 20px;
+      min-width: 160px;
+      text-align: center;
+      border: 1px solid var(--glass-border);
+      transition: var(--transition);
+    }
+
+    .member-mini-card:hover {
+      transform: translateY(-8px);
+      background: var(--glass-hover);
+    }
+
+    .member-avatar {
+      width: 65px;
+      height: 65px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, var(--accent) 0%, #ff9d00 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 15px;
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: #1b4332;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .member-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #fff;
+    }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 25px;
+      margin-bottom: 50px;
+    }
+
+    .club-action-card {
+      background: var(--glass);
+      padding: 40px;
+      border-radius: var(--card-radius);
+      text-align: center;
+      cursor: pointer;
+      border: 1px solid var(--glass-border);
+      transition: var(--transition);
+    }
+
+    .club-action-card:hover {
+      background: var(--glass-hover);
+      transform: translateY(-10px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .club-action-card .icon {
+      font-size: 3.5rem;
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    .leave-button {
+      margin: 40px auto;
+      max-width: 300px;
+      padding: 16px;
+      border-radius: 50px;
+      background: rgba(255, 75, 75, 0.15);
+      border: 1px solid rgba(255, 75, 75, 0.3);
+      color: #ff4b4b;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: block;
+      width: 100%;
+    }
+
+    .leave-button:hover {
+      background: #ff4b4b;
+      color: #fff;
+      transform: scale(1.05);
+    }
+
+    .back-nav {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.6;
+      transition: 0.3s;
+      z-index: 100;
+    }
+
+    .back-nav:hover {
+      opacity: 1;
+      transform: translateX(-5px);
+    }
+
+    @media (max-width: 768px) {
+      .back-nav {
+        top: 20px;
+        left: 20px;
+        font-size: 0.9rem;
+      }
+
+      .club-header-section {
+        padding: 40px 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <a href="../clubs.html" class="back-nav">← Global Hub</a>
+
+  <div class="dashboard-wrapper">
+    <div class="club-header-section">
+      <h1 id="clubName"
+        style="font-size: 3.2rem; font-weight: 900; margin: 0; letter-spacing: -2px; color: var(--accent);">Eco Club
+      </h1>
+      <p id="clubDesc"
+        style="opacity: 0.8; font-size: 1.25rem; margin-top: 15px; color: var(--text-muted); line-height: 1.6;">Loading
+        your eco sanctuary...</p>
+    </div>
+
+    <h3 class="section-title">Club Rangers</h3>
+    <div class="members-reel" id="members"></div>
+
+    <h3 class="section-title">Operations</h3>
+    <div class="actions-grid">
+      <!-- Card 1: Upload Mission -->
+      <div class="club-action-card" onclick="location.href='clubPosts.html'">
+        <span class="icon">🚀</span>
+        <h3 style="font-weight: 800; font-size: 1.5rem;">Upload Mission</h3>
+        <p style="opacity: 0.7; font-size: 1rem; margin-top: 5px;">Submit your environmental proof.</p>
+      </div>
+
+      <!-- Card 2: Show Active Mission -->
+      <div class="club-action-card" onclick="location.href='clubChallenges.html'">
+        <span class="icon">🎯</span>
+        <h3 style="font-weight: 800; font-size: 1.5rem;">Active Missions</h3>
+        <p style="opacity: 0.7; font-size: 1rem; margin-top: 5px;">View live school challenges.</p>
+      </div>
+
+      <!-- Card 3: Mission Count -->
+      <div class="club-action-card" style="cursor: default; border-color: var(--accent);">
+        <span class="icon">📊</span>
+        <h3 style="font-weight: 800; font-size: 1.5rem;">Mission Count</h3>
+        <p id="missionCount" style="font-size: 1.8rem; font-weight: 900; margin-top: 10px; color: var(--accent);">0</p>
+        <p style="opacity: 0.6; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Missions Completed</p>
+      </div>
+    </div>
+
+    <button class="leave-button" onclick="leaveClub()">Retire from Club</button>
+  </div>
+
+  <script>
+    const clubId = localStorage.getItem("club_id");
+    const userEmail = localStorage.getItem("userEmail");
+
+    if (!clubId) {
+      window.location.href = "clubJoin.html";
+    }
+
+    async function loadClub() {
+      try {
+        const res = await fetch(`/api/clubs/info?club_id=${clubId}`);
+        const j = await res.json();
+
+        document.getElementById("clubName").innerText = j.club.club_name;
+        document.getElementById("clubDesc").innerText = j.club.description;
+
+        let membersHTML = "";
+        j.members.forEach(m => {
+          const initials = m.full_name ? m.full_name.split(" ").map(x => x[0]).join("").slice(0, 2).toUpperCase() : "??";
+          membersHTML += `
+            <div class="member-mini-card">
+              <div class="member-avatar">${initials}</div>
+              <div class="member-name">${m.full_name}</div>
+            </div>
+          `;
+        });
+        document.getElementById("members").innerHTML = membersHTML;
+
+        // Load mission count
+        const postsRes = await fetch(`/api/clubs/posts?club_id=${clubId}`);
+        const postsJ = await postsRes.json();
+        if (postsJ.success) {
+          document.getElementById("missionCount").innerText = postsJ.posts.length;
+        }
+      } catch (err) { 
+        console.error("Load Club Error:", err);
+        document.getElementById("clubDesc").innerText = "Error connecting to ecosystem services.";
+      }
+    }
+
+    function openPosts() { window.location.href = "clubPosts.html"; }
+
+    async function leaveClub() {
+      if (!confirm("Are you sure you want to retire from this club?")) return;
+      const userId = await getUserId(userEmail);
+      await fetch("/api/clubs/leave", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ club_id: clubId, user_id: userId })
+      });
+      localStorage.removeItem("club_id");
+      window.location.href = "clubJoin.html";
+    }
+
+    async function getUserId(email) {
+      const res = await fetch(`/api/getUserId?email=${email}`);
+      const j = await res.json();
+      return j.user_id;
+    }
+
+    // Populate Forest Background
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute';
+      tree.style.bottom = '0';
+      tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05';
+      tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+
+    loadClub();
+  </script>
+</body>
+
+</html>

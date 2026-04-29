@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Wildlife Warden</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{margin:0;font-family:"Poppins",sans-serif;background:linear-gradient(to bottom,#f59e0b,#78350f);color:#fff;text-align:center;}
+    h1{margin:14px 0;}
+    #score{font-size:18px;}
+    #game{width:90%;max-width:600px;height:400px;margin:20px auto;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+    .hole{background:rgba(0,0,0,0.3);border-radius:20px;position:relative;overflow:hidden;cursor:pointer;}
+    .animal{position:absolute;bottom:-100%;left:50%;transform:translateX(-50%);font-size:50px;transition:bottom 0.2s;}
+    .btn{margin-top:10px;padding:10px 16px;border-radius:8px;border:none;background:#ffe600;color:#064017;font-weight:700;cursor:pointer;}
+  </style>
+</head>
+<body>
+  <h1>🦊 Wildlife Warden</h1>
+  <div id="score">Animals Rescued: 0  •  Time: <span id="time">30</span>s</div>
+  <div id="game">
+    <div class="hole" onclick="whack(0)"><div class="animal" id="a0">🦊</div></div>
+    <div class="hole" onclick="whack(1)"><div class="animal" id="a1">🐰</div></div>
+    <div class="hole" onclick="whack(2)"><div class="animal" id="a2">🦝</div></div>
+    <div class="hole" onclick="whack(3)"><div class="animal" id="a3">🦌</div></div>
+    <div class="hole" onclick="whack(4)"><div class="animal" id="a4">🦉</div></div>
+    <div class="hole" onclick="whack(5)"><div class="animal" id="a5">🐿️</div></div>
+  </div>
+  <div>
+    <button class="btn" id="startBtn" onclick="startGame()">Start Rescue</button>
+    <button class="btn" style="background:#f43f5e;color:#fff;" onclick="endGame()">End Game</button>
+    <button class="btn" onclick="location.href='games.html'">Back</button>
+  </div>
+<script>
+let score=0, timer=30, activeHole=-1, interval, gameLoop;
+const timeEl=document.getElementById('time');
+
+function startGame(){
+  document.getElementById('startBtn').disabled = true;
+  score=0; timer=30; 
+  document.getElementById('score').innerText = `Animals Rescued: ${score}  •  Time: 30s`;
+  
+  interval = setInterval(()=>{
+    timer--; timeEl.innerText = timer;
+    if(timer<=0) endGame();
+  },1000);
+
+  gameLoop = setInterval(()=>{
+    if(activeHole !== -1) document.getElementById('a'+activeHole).style.bottom = '-100%';
+    activeHole = Math.floor(Math.random()*6);
+    document.getElementById('a'+activeHole).style.bottom = '10px';
+  }, 800);
+}
+
+function whack(idx){
+  if(idx === activeHole){
+    score++;
+    document.getElementById('a'+idx).style.bottom = '-100%';
+    activeHole = -1;
+    document.getElementById('score').innerText = `Animals Rescued: ${score}  •  Time: ${timer}s`;
+  }
+}
+
+function endGame(){
+  clearInterval(interval); clearInterval(gameLoop);
+  document.getElementById('startBtn').disabled = false;
+  if(activeHole !== -1) document.getElementById('a'+activeHole).style.bottom = '-100%';
+  alert('Rescue Finished! Animals Saved: '+score);
+
+  const email = localStorage.getItem("userEmail");
+  if (email && score > 0) {
+    fetch("http://localhost:4000/api/users/addPoints", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, points_to_add: score })
+    }).catch(e=>console.log(e));
+  }
+}
+</script>
+</body>
+</html>

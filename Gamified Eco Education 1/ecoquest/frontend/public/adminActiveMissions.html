@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Active Mission Control | Admin</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .mission-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+
+    .mission-card {
+      background: var(--glass);
+      backdrop-filter: blur(25px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--card-radius);
+      padding: 40px;
+      animation: fadeInDown 0.6s ease-out;
+    }
+
+    .mission-tag {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #ff5252;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .mission-title {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 15px;
+    }
+
+    .mission-desc {
+      font-size: 1.1rem;
+      opacity: 0.7;
+      line-height: 1.6;
+      margin-bottom: 25px;
+    }
+
+    .back-nav {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.6;
+      transition: 0.3s;
+      z-index: 100;
+    }
+
+    .back-nav:hover {
+      opacity: 1;
+      transform: translateX(-5px);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <a href="admin.html" class="back-nav">← Admin Console</a>
+
+  <div class="dashboard-wrapper">
+    <div style="text-align:center; margin-bottom: 60px;">
+      <h1 style="font-size: 3.5rem; font-weight: 900; margin-bottom: 5px; letter-spacing: -1.5px; color: #ff5252;">🔥 Mission Control</h1>
+      <p style="opacity: 0.7; font-weight: 500; color: var(--text-muted); font-size: 1.2rem;">Live global challenges currently issued to Rangers.</p>
+    </div>
+
+    <div id="missionList" class="mission-grid">
+      <p style="text-align:center; grid-column:1/-1;">Synchronizing with orbital mission relay...</p>
+    </div>
+  </div>
+
+  <script>
+    const role = localStorage.getItem("userRole");
+    if (role !== "admin") { window.location.href = "login.html"; }
+
+    async function loadAllMissions() {
+      const container = document.getElementById("missionList");
+      try {
+        const res = await fetch("/api/admin/allChallenges");
+        const j = await res.json();
+
+        if (!j.success || j.challenges.length === 0) {
+          container.innerHTML = "<p style='text-align:center; grid-column:1/-1; opacity:0.6; padding: 50px;'>No active missions are currently broadcasted.</p>";
+          return;
+        }
+
+        container.innerHTML = j.challenges.map(ch => `
+            <div class="mission-card">
+              <span class="mission-tag">📍 ${ch.clubs?.club_name || "Global Mission"}</span>
+              <div class="mission-title">${ch.title}</div>
+              <div class="mission-desc">${ch.description}</div>
+              <div style="font-size: 0.85rem; font-weight: 700; color: #affc41; margin-bottom: 20px;">💰 Reward: ${ch.points || 0} Points</div>
+              <button class="btn-premium" style="background: rgba(255,82,82,0.1); color: #ff5252; border: 1px solid #ff5252; font-size: 0.9rem;" onclick="deleteMission(${ch.id})">Terminate Mission</button>
+            </div>
+        `).join("");
+      } catch (err) { console.error(err); }
+    }
+
+    async function deleteMission(id) {
+        if(!confirm("Are you sure you want to terminate this mission globally?")) return;
+        try {
+            const res = await fetch(`/api/admin/deleteChallenge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            const j = await res.json();
+            if(j.success) {
+                alert("Mission terminated successfully.");
+                loadAllMissions();
+            } else {
+                alert("Failed to terminate mission: " + j.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error connecting to mission relay.");
+        }
+    }
+
+    // Populate Forest Background
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute'; tree.style.bottom = '0'; tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05'; tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+
+    loadAllMissions();
+  </script>
+</body>
+</html>

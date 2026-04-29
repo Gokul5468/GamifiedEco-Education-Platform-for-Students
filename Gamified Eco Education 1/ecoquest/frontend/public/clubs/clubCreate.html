@@ -1,0 +1,167 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+    <meta charset="UTF-8">
+    <title>Start a Club | EcoQuest</title>
+    <link rel="stylesheet" href="../style.css">
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+        .form-container {
+            background: var(--glass);
+            backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--card-radius);
+            padding: 50px;
+            max-width: 600px;
+            margin: 40px auto;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .back-nav {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 700;
+            opacity: 0.6;
+            transition: 0.3s;
+            z-index: 100;
+        }
+
+        .back-nav:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="vines"></div>
+    <div class="forest-bg" id="forest"></div>
+
+    <a href="../clubs.html" class="back-nav">← Cancel</a>
+
+    <div class="dashboard-wrapper">
+        <div style="text-align:center; margin-bottom: 40px;">
+            <h1 style="font-size: 3rem; font-weight: 900; letter-spacing: -2px; color: var(--accent);">Found a Club</h1>
+            <p style="opacity: 0.7; font-weight: 500;">Lead your school's environmental mission.</p>
+        </div>
+
+        <div class="form-container">
+            <div class="input-group">
+                <label class="input-label">Club Name</label>
+                <input id="clubName" class="input-field" placeholder="E.g. The Green Avengers">
+            </div>
+
+            <div class="input-group" style="margin-top: 25px;">
+                <label class="input-label">Mission Statement (Description)</label>
+                <textarea id="clubDesc" class="input-field" rows="4" style="resize:none; height:120px;"
+                    placeholder="What is your club's primary goal?"></textarea>
+            </div>
+
+            <button class="btn-premium" style="margin-top: 40px;" onclick="createClub()">Establish Headquarters</button>
+            <p id="msg" style="text-align:center; margin-top: 20px; font-weight: 800; min-height: 25px;"></p>
+        </div>
+    </div>
+
+    <script>
+        async function createClub() {
+            const name = document.getElementById("clubName").value.trim();
+            const description = document.getElementById("clubDesc").value.trim();
+            const msg = document.getElementById("msg");
+
+            if (!name || !description) {
+                msg.style.color = "#ff5252";
+                msg.innerText = "All fields are required to charter a club.";
+                return;
+            }
+
+            msg.style.color = "#fff";
+            msg.innerText = "Filing paperwork...";
+
+            // Get user info from profile (need school code)
+            const email = localStorage.getItem("userEmail");
+            if (!email) { window.location.href = "../login.html"; return; }
+
+            try {
+                // 1. Get profile (we need school_code)
+                const pRes = await fetch(`http://localhost:4000/api/profile?email=${encodeURIComponent(email)}`);
+                const pData = await pRes.json();
+
+                if (!pData.school_code) {
+                    msg.style.color = "#ff5252";
+                    msg.innerText = "Error: Your profile has no school code.";
+                    return;
+                }
+
+                const school_code = pData.school_code;
+
+                // 2. Create Club
+                const res = await fetch("http://localhost:4000/api/clubs/create", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name,
+                        description,
+                        school_code,
+                        created_by: pData.id // optional tracking
+                    })
+                });
+
+                const j = await res.json();
+
+                if (j.success && j.club) {
+                    msg.style.color = "#affc41";
+                    msg.innerText = "🎉 Club Chartered!";
+
+                    // 3. Auto-join creator
+                    const joinRes = await fetch("http://localhost:4000/api/clubs/join", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email, club_id: j.club.id })
+                    });
+
+                    localStorage.setItem("club_id", j.club.id);
+                    setTimeout(() => window.location.href = "clubHome.html", 1500);
+                } else {
+                    msg.style.color = "#ff5252";
+                    msg.innerText = j.error || "Creation failed.";
+                }
+            } catch (err) {
+                msg.style.color = "#ff5252";
+                msg.innerText = "Network error.";
+                console.error(err);
+            }
+        }
+
+        // Background
+        const forest = document.getElementById('forest');
+        const treeCount = Math.floor(window.innerWidth / 80);
+        for (let i = 0; i < treeCount; i++) {
+            const tree = document.createElement('div');
+            tree.style.position = 'absolute';
+            tree.style.bottom = '0';
+            tree.style.left = (Math.random() * 100) + '%';
+            tree.style.opacity = '0.05';
+            tree.style.transform = `scale(${0.5 + Math.random()})`;
+            tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+            forest.appendChild(tree);
+        }
+    </script>
+</body>
+
+</html>
+

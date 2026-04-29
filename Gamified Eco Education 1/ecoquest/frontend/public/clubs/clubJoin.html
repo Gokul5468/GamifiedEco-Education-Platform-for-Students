@@ -1,0 +1,187 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="UTF-8">
+  <title>Join Eco Club | EcoQuest</title>
+  <link rel="stylesheet" href="../style.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .club-join-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+
+    .club-join-card {
+      background: var(--glass);
+      backdrop-filter: blur(25px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--card-radius);
+      padding: 40px;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .club-join-card:hover {
+      transform: translateY(-12px);
+      background: var(--glass-hover);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+    }
+
+    .club-join-name {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent);
+      margin-bottom: 15px;
+      letter-spacing: -0.5px;
+    }
+
+    .club-join-desc {
+      font-size: 1.05rem;
+      opacity: 0.8;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 30px;
+      flex-grow: 1;
+    }
+
+    .back-nav {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.6;
+      transition: 0.3s;
+      z-index: 100;
+    }
+
+    .back-nav:hover {
+      opacity: 1;
+      transform: translateX(-5px);
+    }
+
+    @media (max-width: 768px) {
+      .back-nav {
+        top: 20px;
+        left: 20px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <a href="../student.html" class="back-nav">← Dashboard</a>
+
+  <div class="dashboard-wrapper">
+    <div style="text-align:center; margin-bottom: 60px;">
+      <h1 style="font-size: 3.5rem; font-weight: 900; margin-bottom: 15px; letter-spacing: -1.5px; color: #fff;">🌱 Find
+        Your Sanctuary</h1>
+      <p style="opacity: 0.8; font-size: 1.25rem; color: var(--text-muted);">Join an Eco Club and collaborate on global
+        environmental missions.</p>
+      <p id="msg" style="margin-top: 20px; font-weight: 800; min-height: 25px;"></p>
+    </div>
+
+    <div class="club-join-grid" id="clubList">
+      <p style="text-align: center; grid-column: 1/-1;">Locating active clubs...</p>
+    </div>
+  </div>
+
+  <script>
+    if (!localStorage.getItem('userEmail')) { window.location.href = '../login.html'; }
+
+    async function loadClubs() {
+      const clubList = document.getElementById("clubList");
+      try {
+        const res = await fetch("http://localhost:4000/api/clubs/all");
+        const j = await res.json();
+
+        if (!j.clubs || j.clubs.length === 0) {
+          clubList.innerHTML = "<p>No clubs available at this moment.</p>";
+          return;
+        }
+
+        clubList.innerHTML = "";
+        j.clubs.forEach(c => {
+          const div = document.createElement("div");
+          div.className = "club-join-card";
+          div.innerHTML = `
+              <div class="club-join-name">${c.club_name}</div>
+              <div class="club-join-desc">${c.description || "A dedicated group of rangers working to save the planet through local and global action."}</div>
+              <button class="btn-premium" onclick="joinClub('${c.id}', this)">Apply for Membership</button>
+            `;
+          clubList.appendChild(div);
+        });
+      } catch (err) { console.error(err); }
+    }
+
+    async function joinClub(club_id, btn) {
+      const email = localStorage.getItem("userEmail");
+      const msg = document.getElementById("msg");
+      btn.disabled = true;
+      btn.innerText = "Processing...";
+
+      const res = await fetch("http://localhost:4000/api/clubs/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, club_id })
+      });
+
+      const j = await res.json();
+      if (j.success) {
+        msg.style.color = "#affc41";
+        msg.innerText = "🎉 Membership Accepted! Welcome to the club.";
+        localStorage.setItem("club_id", club_id);
+        setTimeout(() => window.location.href = "clubHome.html", 1500);
+      } else {
+        msg.style.color = "#ff5252";
+        msg.innerText = j.error || "Application failed.";
+        btn.disabled = false;
+        btn.innerText = "Apply for Membership";
+      }
+    }
+
+    // Populate Forest Background
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute';
+      tree.style.bottom = '0';
+      tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05';
+      tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+
+    loadClubs();
+  </script>
+</body>
+
+</html>
+

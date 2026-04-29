@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script>
+    // Auto API base: works both via file:// and http://localhost:4000
+    (function () {
+      var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+      if (!base) return;
+      var _f = window.fetch.bind(window);
+      window.fetch = function (url, opts) {
+        if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+        return _f(url, opts);
+      };
+    })();
+  </script>
+  <meta charset="utf-8" />
+  <title>Dashboard | EcoQuest</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      --accent: #00f2ff;
+      /* Ultra-transparent glass - 'Pure Glass' mode */
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.3);
+    }
+
+    body {
+      background: #000;
+      overflow-x: hidden;
+    }
+
+    /* Background Video Container - Max Visibility */
+    .bg-video-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -2;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #video1 {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 1.0;
+      /* Full Brightness */
+      filter: none;
+    }
+
+    .bg-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+      /* Very light overlay just to ensure text pop, keeping video clear */
+      background: radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, 0.4) 100%);
+      pointer-events: none;
+    }
+
+    /* Ocean Bubbles */
+    .ocean-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .bubble {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      animation: rise 12s infinite ease-in;
+      bottom: -100px;
+    }
+
+    @keyframes rise {
+      0% {
+        transform: translateY(0) translateX(0);
+        opacity: 0;
+      }
+
+      20% {
+        opacity: 0.4;
+      }
+
+      100% {
+        transform: translateY(-110vh) translateX(30px);
+        opacity: 0;
+      }
+    }
+
+    .header-premium {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: transparent;
+      backdrop-filter: none;
+    }
+
+    /* Ultra-Transparent Glassmorphism */
+    .card-premium {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: none;
+      box-shadow: none;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .card-premium:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--accent);
+      transform: translateY(-8px);
+      box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(20px);
+    }
+
+    .card-premium h3 {
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+      font-weight: 900;
+    }
+
+    .card-premium p {
+      color: #fff;
+      text-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
+      font-weight: 600;
+    }
+
+    .points-badge {
+      background: transparent;
+      border: 2px solid var(--accent);
+      backdrop-filter: none;
+      box-shadow: none;
+    }
+
+    .card-premium.blue {
+      --accent: #00f2ff;
+    }
+
+    .card-premium.teal {
+      --accent: #00ffa2;
+    }
+
+    .card-premium.purple {
+      --accent: #bd00ff;
+    }
+
+    .card-premium.pink {
+      --accent: #ff0077;
+    }
+
+    .card-premium.yellow {
+      --accent: #ffb700;
+    }
+
+    .card-premium.green {
+      --accent: #00ff55;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 🎥 BACKGROUND VIDEO RUNNER - FULL VISIBILITY -->
+  <div class="bg-video-container">
+    <video id="video1" autoplay muted loop playsinline>
+      <source src="vid.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+  </div>
+  <div class="bg-overlay"></div>
+
+  <!-- 🫧 SUBTLE BUBBLES -->
+  <div class="ocean-bg" id="bubbles"></div>
+
+  <div class="dashboard-wrapper">
+    <header class="header-premium">
+      <div class="user-profile">
+        <div id="avatar" class="avatar-circle"
+          style="background: var(--accent); color: #000; font-weight: 900; border: 2px solid #fff;">ST</div>
+        <div class="student-info">
+          <h2 id="greeting"
+            style="font-size: 2.2rem; margin: 0; font-weight: 900; letter-spacing: -2px; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,1);">
+            Loading...</h2>
+          <div id="meta"
+            style="font-weight: 800; opacity: 1; color: var(--accent); margin-top: 4px; font-size: 1rem; text-transform: uppercase; letter-spacing: 3px; text-shadow: 0 2px 10px rgba(0,0,0,0.8);">
+            Eco Guardian</div>
+        </div>
+      </div>
+      <div class="points-badge">
+        <span id="points" class="value" style="color: #fff; text-shadow: 0 0 10px rgba(0,242,255,0.5);">0</span>
+        <span class="label" style="color: var(--accent); font-weight: 900;">Eco Assets</span>
+      </div>
+      <div id="streakBadge" style="
+        background: transparent;
+        border: 2px solid var(--accent);
+        backdrop-filter: none;
+        border-radius: 50px;
+        padding: 10px 18px;
+        text-align: center;
+        display: none;
+        box-shadow: none;
+      ">
+        <span id="streakCount" style="font-size:1.4rem;font-weight:900; color: #fff;">0</span>
+        <span
+          style="font-size:0.7rem;display:block;opacity:1;text-transform:uppercase;letter-spacing:2px; color: var(--accent); font-weight: 900;">🔥
+          Day Streak</span>
+      </div>
+    </header>
+
+    <main class="grid-premium">
+      <!-- 🌍 ECO TIP OF THE DAY -->
+      <div id="tipOfDay" style="
+        grid-column: 1 / -1;
+        padding: 25px 35px;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: none;
+        border-radius: 30px;
+        display: flex;
+        align-items: center;
+        gap: 25px;
+        margin-bottom: 15px;
+        box-shadow: none;
+      ">
+        <span id="tipEmoji" style="font-size: 3rem; filter: drop-shadow(0 0 15px rgba(255,255,255,0.4));"></span>
+        <div>
+          <div
+            style="font-size:0.8rem; text-transform:uppercase; letter-spacing:4px; color:var(--accent); font-weight:900; margin-bottom:8px; text-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+            🌍 ECO TIP OF THE DAY</div>
+          <div id="tipText"
+            style="font-size:1.1rem; color: #fff; font-weight: 600; line-height: 1.6; opacity: 1; text-shadow: 0 2px 10px rgba(0,0,0,1);">
+          </div>
+        </div>
+      </div>
+
+      <!-- 🎮 ECO MISSIONS -->
+      <div class="card-premium" style="--accent: #00f2ff;" onclick="openCard('games')">
+        <div class="icon-wrap" style="background: rgba(0, 242, 255, 0.15); border: 1px solid var(--accent);">🎮</div>
+        <h3>Eco Missions</h3>
+        <p>Complete interactive missions to save the planet and earn Eco Assets.</p>
+        <div class="action-hint" style="color: var(--accent);">Explore Missions →</div>
+      </div>
+
+      <!-- 📝 QUIZZES -->
+      <div class="card-premium" style="--accent: #00ffa2;" onclick="openCard('quizzes')">
+        <div class="icon-wrap" style="background: rgba(0, 255, 162, 0.15); border: 1px solid var(--accent);">📝</div>
+        <h3>Eco Quiz</h3>
+        <p>Test your knowledge of the environment and unlock rare collector badges.</p>
+        <div class="action-hint" style="color: var(--accent);">Test Knowledge →</div>
+      </div>
+
+      <!-- 📚 NATURE LIBRARY -->
+      <div class="card-premium" style="--accent: #bd00ff;" onclick="openCard('learn')">
+        <div class="icon-wrap" style="background: rgba(189, 0, 255, 0.15); border: 1px solid var(--accent);">📚</div>
+        <h3>Nature Archive</h3>
+        <p>Explore cinematic lessons about the natural world and its ecosystems.</p>
+        <div class="action-hint" style="color: var(--accent);">Start Reading →</div>
+      </div>
+
+      <!-- 📸 STORIES -->
+      <div class="card-premium" style="--accent: #ff0077;" onclick="openCard('post')">
+        <div class="icon-wrap" style="background: rgba(255, 0, 119, 0.15); border: 1px solid var(--accent);">📸</div>
+        <h3>Green Stories</h3>
+        <p>Share your real-world acts of kindness and conservation efforts.</p>
+        <div class="action-hint" style="color: var(--accent);">Share Story →</div>
+      </div>
+
+      <!-- 🌱 ECO CLUBS -->
+      <div class="card-premium" style="--accent: #00ff55;" onclick="openCard('clubs')">
+        <div class="icon-wrap" style="background: rgba(0, 255, 85, 0.15); border: 1px solid var(--accent);">🌱</div>
+        <h3>Eco Circles</h3>
+        <p>Join local groups and collaborate on environmental projects.</p>
+        <div class="action-hint" style="color: var(--accent);">Join Circle →</div>
+      </div>
+
+      <!-- 📊 IMPACT TRACKER -->
+      <!-- <div class="card-premium" style="--accent: #00f2ff;" onclick="openCard('impact')">
+        <div class="icon-wrap" style="background: rgba(0, 242, 255, 0.15); border: 1px solid var(--accent);">📊</div>
+        <h3>Impact Tracker</h3>
+        <p>Visualize your contribution to a cleaner, green sustainable future.</p>
+        <div class="action-hint" style="color: var(--accent);">View Stats →</div>
+      </div> -->
+
+      <!-- 🏆 LEADERBOARD -->
+      <div class="card-premium" style="--accent: #ffb700;" onclick="openCard('leaderboard')">
+        <div class="icon-wrap" style="background: rgba(255, 183, 0, 0.15); border: 1px solid var(--accent);">🏆</div>
+        <h3>Hall of Heroes</h3>
+        <p>See how you rank against other elite Eco Guardians platform-wide.</p>
+        <div class="action-hint" style="color: var(--accent);">View Rankings →</div>
+      </div>
+    </main>
+  </div>
+
+  <nav class="navbar-mobile"
+    style="background: transparent; border-top: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: none;">
+    <div onclick="openCard('home')" class="nav-item active" title="Home">🏠</div>
+    <div onclick="openCard('games')" class="nav-item" title="Games">🎮</div>
+    <div onclick="openCard('learn')" class="nav-item" title="Library">📚</div>
+    <div onclick="goProfile()" class="nav-item" title="Profile">👤</div>
+    <div onclick="logout()" class="nav-item" title="Logout" style="filter: grayscale(1) invert(1);">🚪</div>
+  </nav>
+
+  <script>
+    function logout() { localStorage.clear(); window.location.href = 'login.html'; }
+    function goProfile() { window.location.href = 'profile.html'; }
+    function openCard(key) {
+      const routes = {
+        'games': 'games.html',
+        'quizzes': 'quizzes.html',
+        'learn': 'learn.html',
+        'post': 'postActivity.html',
+        'clubs': 'clubs.html',
+        'impact': 'impact.html',
+        'leaderboard': 'leaderboard.html',
+        'home': 'student.html'
+      };
+      if (routes[key]) window.location.href = routes[key];
+    }
+
+    async function loadProfile() {
+      const email = localStorage.getItem('userEmail');
+      if (!email) { window.location.href = 'login.html'; return; }
+
+      try {
+        const res = await fetch(`/api/profile?email=${encodeURIComponent(email)}`);
+        const data = await res.json();
+
+        if (res.status !== 200) {
+          localStorage.removeItem('userEmail');
+          return window.location.href = 'login.html';
+        }
+
+        const firstName = data.full_name ? data.full_name.split(' ')[0] : 'Ranger';
+        document.getElementById('greeting').innerText = `Welcome, ${firstName} 👋`;
+        document.getElementById('meta').innerText = `Eco Guardian • ${data.school_code || 'EcoQuest'}`;
+
+        updateStreak(email);
+
+        const targetPoints = data.points ?? 0;
+        let current = 0;
+        const interval = setInterval(() => {
+          if (current >= targetPoints) {
+            document.getElementById('points').innerText = targetPoints;
+            clearInterval(interval);
+          } else {
+            current += Math.ceil(targetPoints / 20);
+            if (current > targetPoints) current = targetPoints;
+            document.getElementById('points').innerText = current;
+          }
+        }, 30);
+
+        const initials = data.full_name ? data.full_name.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase() : 'ST';
+        document.getElementById('avatar').innerText = initials;
+
+      } catch (err) {
+        console.error("Profile load error:", err);
+      }
+    }
+
+    const ECO_TIPS = [
+      { tip: "Turn off lights when you leave a room to save up to 10% on your electricity bill.", emoji: "💡" },
+      { tip: "A 5-minute shower uses about 50 litres of water. Try to keep showers short!", emoji: "🚿" },
+      { tip: "Recycling one aluminium can saves enough energy to run a TV for 3 hours.", emoji: "♻️" },
+      { tip: "Planting trees near your home can reduce cooling costs by up to 30%.", emoji: "🌳" },
+      { tip: "Eating one plant-based meal per day can reduce your carbon footprint by 50%.", emoji: "🥗" },
+      { tip: "A dripping tap can waste up to 15 litres of water per day. Report and fix leaks!", emoji: "💧" },
+      { tip: "Using public transport instead of a car reduces CO2 emissions by up to 70%.", emoji: "🚌" },
+      { tip: "Composting food scraps reduces methane emissions from landfills.", emoji: "🌿" },
+      { tip: "Solar panels on rooftops can generate enough power for an average home.", emoji: "☀️" },
+      { tip: "Bees pollinate 1/3 of our food supply. Planting flowers helps protect them.", emoji: "🐝" },
+    ];
+    function showEcoTip() {
+      const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+      const tip = ECO_TIPS[dayOfYear % ECO_TIPS.length];
+      document.getElementById('tipEmoji').innerText = tip.emoji;
+      document.getElementById('tipText').innerText = tip.tip;
+    }
+
+    function showToast(message, emoji = '🌱', color = '#00f2ff') {
+      const toast = document.createElement('div');
+      toast.style.cssText = `
+        position: fixed; bottom: 90px; left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: rgba(0,0,0,0.9);
+        border: 1px solid ${color}; color: #fff;
+        padding: 14px 28px; border-radius: 50px;
+        font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1rem;
+        z-index: 9999; opacity: 0; transition: all 0.4s ease; white-space: nowrap;
+      `;
+      toast.innerText = emoji + ' ' + message;
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.style.opacity = '1'; toast.style.transform = 'translateX(-50%) translateY(0)'; }, 50);
+      setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 3500);
+    }
+
+    function sendHeartbeat() {
+      const email = localStorage.getItem('userEmail');
+      if (!email) return;
+      fetch('/api/users/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, page: document.title })
+      }).catch(() => { });
+    }
+
+    async function updateStreak(email) {
+      try {
+        const res = await fetch('/api/users/updateStreak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        const streak = data.streak || 0;
+        if (streak > 0) {
+          document.getElementById('streakBadge').style.display = 'block';
+          document.getElementById('streakCount').innerText = streak;
+          if (streak > 1) showToast(`${streak} day streak! Keep it up!`, '🔥', '#00f2ff');
+        }
+      } catch (e) { }
+    }
+
+    // Create Subtle Bubbles
+    function createBubbles() {
+      const container = document.getElementById('bubbles');
+      for (let i = 0; i < 20; i++) {
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        const size = Math.random() * 30 + 5 + 'px';
+        bubble.style.width = size;
+        bubble.style.height = size;
+        bubble.style.left = Math.random() * 100 + '%';
+        bubble.style.animationDelay = Math.random() * 12 + 's';
+        bubble.style.animationDuration = Math.random() * 10 + 6 + 's';
+        container.appendChild(bubble);
+      }
+    }
+
+    window.addEventListener('load', () => {
+      loadProfile();
+      showEcoTip();
+      createBubbles();
+      sendHeartbeat();
+      setInterval(sendHeartbeat, 30000);
+    });
+  </script>
+</body>
+
+</html>

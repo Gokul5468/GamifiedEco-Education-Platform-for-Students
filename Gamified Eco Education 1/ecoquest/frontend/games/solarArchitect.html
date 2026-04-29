@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Solar Architect</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{margin:0;font-family:"Poppins",sans-serif;background:linear-gradient(to bottom,#fbbf24,#b45309);color:#fff;text-align:center;}
+    h1{margin:14px 0;}
+    #score{font-size:18px;}
+    #game{width:90%;max-width:600px;margin:20px auto;display:grid;grid-template-columns:repeat(4,1fr);gap:15px;}
+    .building{background:#52525b;border-top:10px solid #3f3f46;height:80px;position:relative;cursor:pointer;border-radius:4px;transition:0.3s;}
+    .building:hover{background:#71717a;}
+    .solar{position:absolute;top:-25px;left:50%;transform:translateX(-50%);font-size:30px;display:none;}
+    .btn{margin-top:10px;padding:10px 16px;border-radius:8px;border:none;background:#ffe600;color:#064017;font-weight:700;cursor:pointer;}
+  </style>
+</head>
+<body>
+  <h1>🏙️ Solar Architect</h1>
+  <div id="score">Renewable Energy: 0%  •  Budget: <span id="budget">10</span></div>
+  <div id="game"></div>
+  <div>
+    <button class="btn" onclick="startGame()">Restart</button>
+    <button class="btn" style="background:#f43f5e;color:#fff;" onclick="endGame()">End Game</button>
+    <button class="btn" onclick="location.href='games.html'">Back</button>
+  </div>
+<script>
+let energy=0, budget=10;
+const game=document.getElementById('game');
+
+function startGame(){
+  energy=0; budget=12;
+  document.getElementById('score').innerHTML = `Renewable Energy: ${energy}%  •  Budget: <span id="budget">${budget}</span>`;
+  game.innerHTML='';
+  for(let i=0; i<12; i++){
+    const b = document.createElement('div');
+    b.className='building';
+    b.innerHTML='<div class="solar">☀️</div>';
+    b.onclick = () => placeSolar(b, i);
+    game.appendChild(b);
+  }
+}
+
+function placeSolar(b, i){
+  if(budget<=0 || b.classList.contains('has-solar')) return;
+  budget--;
+  energy += Math.floor(Math.random()*10) + 5; // 5-14% energy per panel
+  if(energy>100) energy=100;
+  
+  b.classList.add('has-solar');
+  b.querySelector('.solar').style.display = 'block';
+  document.getElementById('score').innerHTML = `Renewable Energy: ${energy}%  •  Budget: <span id="budget">${budget}</span>`;
+
+  if(energy >= 100){
+    alert('City is 100% Renewable! You win!');
+    const email = localStorage.getItem("userEmail");
+    if (email) {
+      fetch("http://localhost:4000/api/users/addPoints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email, points_to_add: 50 })
+      }).catch(e=>console.log(e));
+    }
+  } else if(budget <= 0){
+    alert('Out of budget! Reached ' + energy + '% renewable.');
+  }
+}
+
+function endGame(){
+  budget = 0; // force stop
+  alert('Game Ended Early! Renewable: ' + energy + '%');
+  const email = localStorage.getItem("userEmail");
+  if (email && energy > 0) {
+    fetch("http://localhost:4000/api/users/addPoints", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, points_to_add: Math.floor(energy/2) })
+    }).catch(e=>console.log(e));
+  }
+}
+
+startGame();
+</script>
+</body>
+</html>

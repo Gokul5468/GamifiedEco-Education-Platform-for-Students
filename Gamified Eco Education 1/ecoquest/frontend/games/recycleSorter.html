@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Recycle Sorter Game</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{margin:0;font-family:"Poppins",sans-serif;background:linear-gradient(135deg,#0e511b,#0b7a32);color:#fff;text-align:center}
+    h1{margin:18px 0}
+    #score{font-size:18px}
+    .game-area{display:flex;gap:12px;justify-content:center;align-items:flex-start;padding:12px;flex-wrap:wrap}
+    .bin{width:180px;height:240px;background:rgba(255,255,255,0.06);border-radius:12px;padding:12px;border:2px dashed rgba(255,255,255,0.08);display:flex;flex-direction:column;align-items:center}
+    #items{width:100%;max-width:900px;margin:12px auto;display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+    .item{background:#fff;color:#000;padding:10px 12px;border-radius:8px;cursor:grab;font-weight:700;min-width:110px;text-align:center}
+    .btn{margin-top:10px;padding:10px 14px;border-radius:10px;border:none;background:#ffe600;color:#064017;font-weight:700;cursor:pointer}
+  </style>
+</head>
+<body>
+  <h1>♻ Recycle Sorter</h1>
+  <div id="score">Score: 0  •  High: <span id="high">0</span></div>
+
+  <div class="game-area">
+    <div class="bin" id="paper" ondrop="drop(event)" ondragover="allowDrop(event)"><h3>📄 Paper</h3></div>
+    <div class="bin" id="plastic" ondrop="drop(event)" ondragover="allowDrop(event)"><h3>🧴 Plastic</h3></div>
+    <div class="bin" id="organic" ondrop="drop(event)" ondragover="allowDrop(event)"><h3>🍎 Organic</h3></div>
+  </div>
+
+  <div id="items"></div>
+
+  <div style="text-align:center;margin-top:8px;">
+    <button class="btn" onclick="startGame()">Restart Game</button>
+    <button class="btn" onclick="location.href='games.html'">Back</button>
+  </div>
+
+<script>
+let score=0; const itemsList = [
+  { name:"Newspaper", type:"paper" },
+  { name:"Cardboard", type:"paper" },
+  { name:"Plastic Bottle", type:"plastic" },
+  { name:"Chips Packet", type:"plastic" },
+  { name:"Banana Peel", type:"organic" },
+  { name:"Apple Core", type:"organic" },
+  { name:"Magazine", type:"paper" },
+  { name:"Yogurt Cup", type:"plastic" }
+];
+
+function loadHigh(){ document.getElementById('high').innerText = localStorage.getItem('recycle_high')||0 }
+loadHigh();
+
+function startGame(){
+  score=0; document.getElementById('score').innerText=`Score: ${score}  •  High: ${localStorage.getItem('recycle_high')||0}`;
+  loadItems();
+}
+
+function loadItems(){
+  const container = document.getElementById('items');
+  container.innerHTML='';
+  const shuffled = [...itemsList].sort(()=>Math.random()-0.5);
+  shuffled.forEach((item, i)=>{
+    const div = document.createElement('div');
+    div.className='item';
+    div.draggable=true;
+    div.id='item-'+i;
+    div.dataset.type=item.type;
+    div.innerText = item.name;
+    div.ondragstart = drag;
+    container.appendChild(div);
+  });
+}
+
+function allowDrop(ev){ ev.preventDefault(); }
+function drag(ev){ ev.dataTransfer.setData('text', ev.target.id); }
+function drop(ev){
+  ev.preventDefault();
+  const itemId = ev.dataTransfer.getData('text');
+  const item = document.getElementById(itemId);
+  if(!item) return;
+  const itemType = item.dataset.type;
+  // find actual bin id (in case user drops on child)
+  const bin = ev.target.closest('.bin');
+  if(!bin) return;
+  const binType = bin.id;
+  if(itemType === binType){
+    score++; item.remove();
+    updateScore();
+  } else {
+    score = Math.max(0, score-1);
+    updateScore();
+  }
+  if(document.querySelectorAll('.item').length === 0){
+    // finished
+    const prev = Number(localStorage.getItem('recycle_high')||0);
+    if(score>prev){ localStorage.setItem('recycle_high', score); loadHigh(); alert('New high score!'); }
+  }
+}
+
+function updateScore(){ document.getElementById('score').innerText=`Score: ${score}  •  High: ${localStorage.getItem('recycle_high')||0}` }
+
+startGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Pollution Patrol</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{margin:0;font-family:"Poppins",sans-serif;background:linear-gradient(to bottom,#f43f5e,#881337);color:#fff;overflow:hidden;text-align:center;}
+    h1{margin:14px 0;}
+    #score{font-size:18px;}
+    #game{width:100%;max-width:800px;height:420px;margin:0 auto;background:rgba(255,255,255,0.1);position:relative;overflow:hidden;cursor:crosshair;}
+    .cloud{position:absolute;font-size:40px;cursor:pointer;user-select:none;transition:transform 0.2s;}
+    .cloud:active{transform:scale(1.5);}
+    .btn{margin-top:10px;padding:10px 16px;border-radius:8px;border:none;background:#ffe600;color:#064017;font-weight:700;cursor:pointer;}
+  </style>
+</head>
+<body>
+  <h1>🚁 Pollution Patrol</h1>
+  <div id="score">Smog Cleared: 0  •  Time: <span id="time">30</span>s</div>
+  <div id="game"></div>
+  <div>
+    <button class="btn" id="startBtn" onclick="startGame()">Start Patrol</button>
+    <button class="btn" style="background:#f43f5e;color:#fff;" onclick="endGame()">End Game</button>
+    <button class="btn" onclick="location.href='games.html'">Back</button>
+  </div>
+<script>
+let score=0, timer=30, interval, gameLoop;
+const game=document.getElementById('game'), timeEl=document.getElementById('time');
+
+function startGame(){
+  document.getElementById('startBtn').disabled = true;
+  score=0; timer=30; game.innerHTML='';
+  document.getElementById('score').innerText = `Smog Cleared: ${score}  •  Time: 30s`;
+  
+  interval = setInterval(()=>{
+    timer--; timeEl.innerText = timer;
+    if(timer<=0) endGame();
+  },1000);
+
+  gameLoop = setInterval(()=>{
+    const cloud = document.createElement('div');
+    cloud.className='cloud';
+    cloud.innerText = '☁️';
+    cloud.style.filter = 'brightness(0.2) sepia(1) hue-rotate(200deg)';
+    cloud.style.left = Math.random()*80 + '%';
+    cloud.style.top = Math.random()*80 + '%';
+    game.appendChild(cloud);
+
+    cloud.onclick = () => {
+      score++;
+      document.getElementById('score').innerText = `Smog Cleared: ${score}  •  Time: ${timer}s`;
+      cloud.remove();
+    };
+
+    setTimeout(()=>{
+      if(game.contains(cloud)) cloud.remove();
+    }, 1500);
+  }, 600);
+}
+
+function endGame(){
+  clearInterval(interval); clearInterval(gameLoop);
+  document.getElementById('startBtn').disabled = false;
+  alert('Patrol Finished! Cleared: '+score);
+
+  const email = localStorage.getItem("userEmail");
+  if (email && score > 0) {
+    fetch("http://localhost:4000/api/users/addPoints", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, points_to_add: score })
+    }).catch(e=>console.log(e));
+  }
+}
+</script>
+</body>
+</html>

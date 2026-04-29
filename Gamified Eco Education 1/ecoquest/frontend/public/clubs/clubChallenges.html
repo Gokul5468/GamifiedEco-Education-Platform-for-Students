@@ -1,0 +1,189 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Active Missions | EcoQuest</title>
+  <link rel="stylesheet" href="../style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .challenge-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+
+    .challenge-card {
+      background: var(--glass);
+      backdrop-filter: blur(25px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--card-radius);
+      padding: 40px;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      animation: fadeInDown 0.6s ease-out;
+    }
+
+    .challenge-card:hover {
+      transform: translateY(-12px);
+      background: var(--glass-hover);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+    }
+
+    .challenge-title {
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 15px;
+      letter-spacing: -0.5px;
+    }
+
+    .challenge-desc {
+      font-size: 1.05rem;
+      opacity: 0.8;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 30px;
+      flex-grow: 1;
+    }
+
+    .back-nav {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.6;
+      transition: 0.3s;
+      z-index: 100;
+    }
+
+    .back-nav:hover {
+      opacity: 1;
+      transform: translateX(-5px);
+    }
+
+    @media (max-width: 768px) {
+      .back-nav {
+        top: 20px;
+        left: 20px;
+        font-size: 0.9rem;
+      }
+
+      .challenge-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <a href="clubHome.html" class="back-nav">← Club Hub</a>
+
+  <div class="dashboard-wrapper">
+    <div style="text-align:center; margin-bottom: 60px;">
+      <h1 style="font-size: 3.5rem; font-weight: 900; margin-bottom: 5px; letter-spacing: -1.5px; color: #fff;">🔥
+        Active Missions</h1>
+      <p style="opacity: 0.7; font-weight: 500; color: var(--text-muted); font-size: 1.2rem;">Live challenges issued by
+        club leadership.</p>
+    </div>
+
+    <div id="challengeList" class="challenge-grid">
+      <p style="text-align:center; grid-column:1/-1;">Locating active mission signals...</p>
+    </div>
+  </div>
+
+  <script>
+    async function loadChallenges() {
+      const email = localStorage.getItem("userEmail");
+      if (!email) { window.location.href = '../login.html'; return; }
+
+      try {
+        const profileRes = await fetch(`http://localhost:4000/api/profile?email=${email}`);
+        const profile = await profileRes.json();
+        const club_id = profile.club_id;
+
+        const res = await fetch(`http://localhost:4000/api/clubs/getChallenges?club_id=${club_id}`);
+        const challenges = await res.json();
+
+        const container = document.getElementById("challengeList");
+        if (challenges.length === 0) {
+          container.innerHTML = "<p style='text-align:center; grid-column:1/-1; opacity:0.6; padding: 50px;'>No active missions currently available in this sector.</p>";
+          return;
+        }
+
+        container.innerHTML = challenges.map(ch => `
+            <div class="challenge-card">
+              <div class="challenge-title">${ch.title}</div>
+              <div class="challenge-desc">${ch.description}</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                  <button class="btn-premium" style="font-size: 0.9rem; padding: 12px;" onclick="startChallenge(${ch.id})">Engage</button>
+                  <button class="btn-premium" style="font-size: 0.9rem; padding: 12px; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid var(--glass-border);" onclick="submitProof(${ch.id})">Report</button>
+              </div>
+            </div>
+        `).join("");
+      } catch (err) { console.error(err); }
+    }
+
+    function startChallenge(id) {
+      alert("Mission parameters locked! Good luck, Ranger.");
+    }
+
+    function submitProof(id) {
+      let proof = prompt("Attach mission report (Description or Verification URL):");
+      if (!proof) return;
+
+      fetch("http://localhost:4000/api/clubs/submitChallenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          challenge_id: id,
+          proof: proof,
+          email: localStorage.getItem("userEmail")
+        })
+      })
+        .then(r => r.json())
+        .then(d => alert(d.message || d.error));
+    }
+
+    // Populate Forest Background
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute';
+      tree.style.bottom = '0';
+      tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05';
+      tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+
+    loadChallenges();
+  </script>
+</body>
+
+</html>
+

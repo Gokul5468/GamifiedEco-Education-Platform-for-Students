@@ -1,0 +1,183 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Leaderboard | EcoQuest</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .lb-tabs {
+      display: flex;
+      gap: 10px;
+      margin: 30px 0 20px;
+    }
+    .lb-tab {
+      flex: 1;
+      padding: 14px;
+      border-radius: 50px;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
+      color: #fff;
+      transition: 0.3s;
+      text-align: center;
+    }
+    .lb-tab.active {
+      background: var(--accent);
+      color: #000;
+      border-color: transparent;
+    }
+    .lb-row {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 18px 25px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      margin-bottom: 12px;
+      transition: 0.2s;
+    }
+    .lb-row.me {
+      border-color: var(--accent);
+      background: rgba(175,252,65,0.07);
+      box-shadow: 0 0 20px rgba(175,252,65,0.1);
+    }
+    .lb-rank {
+      font-size: 1.5rem;
+      font-weight: 900;
+      min-width: 50px;
+      text-align: center;
+    }
+    .lb-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 15px;
+      background: linear-gradient(135deg, #4ade80 0%, #06b6d4 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 1.1rem;
+      color: #000;
+      flex-shrink: 0;
+    }
+    .lb-info { flex: 1; min-width: 0; }
+    .lb-name { font-weight: 800; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lb-sub { font-size: 0.8rem; opacity: 0.5; margin-top: 2px; text-transform: uppercase; letter-spacing: 1px; }
+    .lb-pts { font-size: 1.6rem; font-weight: 900; color: var(--accent); }
+    .back-nav {
+      position: fixed; top: 40px; left: 40px; z-index: 100;
+      color: #fff; text-decoration: none; font-weight: 700;
+      display: flex; align-items: center; gap: 10px; opacity: 0.6; transition: 0.3s;
+    }
+    .back-nav:hover { opacity: 1; transform: translateX(-5px); }
+    .empty-state { text-align: center; padding: 60px 20px; opacity: 0.4; font-size: 1.2rem; }
+  </style>
+</head>
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+  <a href="student.html" class="back-nav">← Dashboard</a>
+  <div class="dashboard-wrapper" style="max-width: 750px; padding-top: 80px;">
+    <h1 style="font-size:3rem; font-weight:900; letter-spacing:-2px; margin:0;">🏆 <span style="color:var(--accent)">Leaderboard</span></h1>
+    <p style="opacity:0.5; margin-top:8px;">Top eco-warriors ranked by total Eco Points earned.</p>
+
+    <div class="lb-tabs">
+      <div class="lb-tab active" id="tabGlobal" onclick="switchTab('global')">🌍 Global Ranking</div>
+      <div class="lb-tab" id="tabSchool" onclick="switchTab('school')">🏫 My School</div>
+    </div>
+
+    <div id="lbList"></div>
+  </div>
+
+  <script>
+    let myEmail = localStorage.getItem('userEmail') || '';
+    let mySchoolCode = '';
+    let myName = '';
+    let currentTab = 'global';
+
+    async function init() {
+      if (!myEmail) { location.href = 'login.html'; return; }
+      try {
+        const res = await fetch(`/api/profile?email=${encodeURIComponent(myEmail)}`);
+        const data = await res.json();
+        mySchoolCode = data.school_code || '';
+        myName = data.full_name || '';
+      } catch(e) {}
+      loadLeaderboard('global');
+    }
+
+    async function loadLeaderboard(type) {
+      currentTab = type;
+      const list = document.getElementById('lbList');
+      list.innerHTML = '<div class="empty-state">Loading...</div>';
+      try {
+        let url = `/api/leaderboard?type=${type}&limit=50`;
+        if (type === 'school' && mySchoolCode) url += `&school_code=${mySchoolCode}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const boards = data.leaderboard || [];
+        if (!boards.length) {
+          list.innerHTML = '<div class="empty-state">No data available yet.</div>';
+          return;
+        }
+        list.innerHTML = '';
+        boards.forEach((entry, i) => {
+          const rank = i + 1;
+          const rankDisplay = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+          const initials = entry.full_name ? entry.full_name.split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase() : '??';
+          const isMe = entry.full_name === myName;
+          const row = document.createElement('div');
+          row.className = 'lb-row' + (isMe ? ' me' : '');
+          row.innerHTML = `
+            <div class="lb-rank">${rankDisplay}</div>
+            <div class="lb-avatar">${initials}</div>
+            <div class="lb-info">
+              <div class="lb-name">${entry.full_name || 'Unknown'}${isMe ? ' <span style="color:var(--accent);font-size:0.75rem;">YOU</span>' : ''}</div>
+              <div class="lb-sub">${entry.school_code || '—'} • ${entry.class_name || 'Student'}</div>
+            </div>
+            <div class="lb-pts">${(entry.points || 0).toLocaleString()}</div>
+          `;
+          list.appendChild(row);
+        });
+      } catch(e) {
+        list.innerHTML = '<div class="empty-state">Failed to load leaderboard.</div>';
+      }
+    }
+
+    function switchTab(tab) {
+      document.getElementById('tabGlobal').classList.toggle('active', tab === 'global');
+      document.getElementById('tabSchool').classList.toggle('active', tab === 'school');
+      loadLeaderboard(tab);
+    }
+
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.cssText = `position:absolute;bottom:0;left:${Math.random()*100}%;opacity:0.05;transform:scale(${0.5+Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff"/></svg>`;
+      forest.appendChild(tree);
+    }
+
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>
+
+

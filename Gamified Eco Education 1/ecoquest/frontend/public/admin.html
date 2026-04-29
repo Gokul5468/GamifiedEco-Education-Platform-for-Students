@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Admin Dashboard | EcoQuest</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <div class="dashboard-wrapper">
+    <header class="header-premium">
+      <div class="user-profile">
+        <div id="avatar" class="avatar-circle"
+          style="background: linear-gradient(135deg, #ff5252 0%, #780001 100%); color: #fff;">AD</div>
+        <div class="student-info">
+          <h2 id="adminTitle" style="font-size: 2rem; margin: 0; font-weight: 800; letter-spacing: -1px; color: #fff;">
+            Admin Console</h2>
+          <div id="adminSub"
+            style="font-weight: 600; opacity: 0.9; color: #ff5252; margin-top: 4px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">
+            Fetching access...</div>
+        </div>
+      </div>
+      <div>
+        <button class="btn-premium"
+          style="width: auto; padding: 12px 25px; margin-top: 0; background: #ff5252; color: #fff;"
+          onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <main class="grid-premium">
+      <!-- 🏫 ADD SCHOOL -->
+      <div class="card-premium pink" onclick="location.href='addSchool.html'">
+        <div class="icon-wrap">🏫</div>
+        <h3>Add New School</h3>
+        <p>Register a new school and automatically configure their administrative access.</p>
+        <div class="action-hint" style="color: #ff4d6d;">Open Factory →</div>
+      </div>
+
+      <!-- 🧑‍🎓 VIEW STUDENTS -->
+      <div class="card-premium purple" onclick="location.href='adminUsers.html?role=student'">
+        <div class="icon-wrap">🧑‍🎓</div>
+        <h3>Student Performance</h3>
+        <p>Monitor student activities, track points, and review individual eco-performance details.</p>
+        <div class="action-hint" style="color: #9d4edd;">View Details →</div>
+      </div>
+
+
+
+      <!-- 📡 MONITOR MISSIONS -->
+      <div class="card-premium orange" onclick="location.href='adminMissions.html'" style="border-color: #fb8500; background: rgba(251, 133, 0, 0.05);">
+        <div class="icon-wrap">📡</div>
+        <h3>Monitor Missions</h3>
+        <p>Real-time feed of all environmental missions and proof uploaded by Rangers.</p>
+        <div class="action-hint" style="color: #fb8500;">Live Feed</div>
+      </div>
+
+      <!-- 📊 ANALYTICS -->
+      <div class="card-premium yellow" onclick="location.href='adminAnalytics.html'">
+        <div class="icon-wrap">📊</div>
+        <h3>Global Analytics</h3>
+        <p>Track real-world environmental impact and platform-wide engagement data.</p>
+        <div class="action-hint" style="color: var(--accent);">Deep Data →</div>
+      </div>
+
+      <!-- 🔥 ACTIVE MISSIONS -->
+      <div class="card-premium blue" onclick="location.href='adminActiveMissions.html'" style="border-color: #ff5252; background: rgba(255, 82, 82, 0.05);">
+        <div class="icon-wrap">🔥</div>
+        <h3 style="color: #ff5252;">Active Mission Control</h3>
+        <p>Monitor, issue, and manage current high-priority environmental missions.</p>
+        <div class="action-hint" style="color: #ff5252;">Mission Hub →</div>
+      </div>
+    </main>
+
+    <!-- Admin Stats Bar -->
+    <div id="adminStatsBar" style="display:flex; gap:20px; margin-bottom:30px; flex-wrap:wrap; margin-top:30px;">
+      <div style="flex:1; min-width:140px; padding:20px 25px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:20px; text-align:center;">
+        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; color:#ff5252; font-weight:800; margin-bottom:8px;">SCHOOLS</div>
+        <div id="statSchools" style="font-size:2.5rem; font-weight:900;">—</div>
+      </div>
+      <div style="flex:1; min-width:140px; padding:20px 25px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:20px; text-align:center;">
+        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; color:#74c69d; font-weight:800; margin-bottom:8px;">STUDENTS</div>
+        <div id="statUsers" style="font-size:2.5rem; font-weight:900;">—</div>
+      </div>
+      <div style="flex:1; min-width:140px; padding:20px 25px; background:rgba(255,82,82,0.1); border:1px solid rgba(255,82,82,0.3); border-radius:20px; text-align:center;">
+        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; color:#affc41; font-weight:800; margin-bottom:8px;">🟢 ACTIVE NOW</div>
+        <div id="statActive" style="font-size:2.5rem; font-weight:900; color:#affc41;">—</div>
+      </div>
+    </div>
+
+    <div
+      style="margin-top:20px; padding: 30px; background: rgba(0,0,0,0.3); border: 1px dashed rgba(255,255,255,0.15); border-radius: var(--card-radius); font-size: 1rem; line-height: 1.6;">
+      <strong style="color: #ff5252;">Administrative Note:</strong> You are the sole authority for this ecosystem. Monitor all student performance and mission data from this centralized console.
+    </div>
+  </div>
+
+  <script>
+    async function loadAdminInfo() {
+      const email = localStorage.getItem("userEmail");
+      const role = localStorage.getItem("userRole");
+
+      if (!email || role !== "admin") {
+        document.getElementById("adminTitle").innerText = "ACCESS DENIED";
+        setTimeout(() => { window.location.href = "login.html"; }, 1500);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/profile?email=${encodeURIComponent(email)}`);
+        const j = await res.json();
+        if (res.ok && j && j.full_name) {
+          document.getElementById("adminTitle").innerText = `Admin: ${j.full_name.split(' ')[0]}`;
+          document.getElementById("adminSub").innerText = `SYSTEM CORE • Manager`;
+          document.getElementById("avatar").innerText = j.full_name.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase();
+        }
+      } catch (err) {
+        console.error("Profile load failed", err);
+      }
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = "login.html";
+    }
+
+    // Populate Forest Background
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute';
+      tree.style.bottom = '0';
+      tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05';
+      tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+
+    async function loadAdminStats() {
+      try {
+        const res = await fetch('/api/admin/stats');
+        const data = await res.json();
+        document.getElementById('statSchools').innerText = data.total_schools ?? '0';
+        document.getElementById('statUsers').innerText = data.total_users ?? '0';
+        document.getElementById('statActive').innerText = data.active_users ?? '0';
+      } catch (e) {
+        console.error("Stats load failed", e);
+      }
+    }
+
+    window.addEventListener('load', () => {
+      loadAdminInfo();
+      loadAdminStats();
+      setInterval(loadAdminStats, 30000);
+    });
+  </script>
+</body>
+
+</html>

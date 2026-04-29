@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Eco Runner Advanced | EcoQuest</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --sky: #a2d2ff;
+      --nature: #4ade80;
+      --nature-dark: #166534;
+      --accent: #ffbe0b;
+      --toxic: #f43f5e;
+      --glass: rgba(0, 0, 0, 0.4);
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+      background: #000;
+      overflow: hidden;
+      touch-action: none;
+      color: #fff;
+    }
+
+    canvas {
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* 🎮 HUD */
+    .hud {
+      position: fixed;
+      top: 30px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 40px;
+      pointer-events: none;
+      z-index: 100;
+      animation: fadeInHUD 1s ease-out;
+    }
+
+    @keyframes fadeInHUD {
+      from {
+        transform: translateY(-30px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .stat-box {
+      background: var(--glass);
+      backdrop-filter: blur(15px);
+      padding: 15px 30px;
+      border-radius: 25px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent);
+      font-weight: 800;
+      margin-bottom: 2px;
+    }
+
+    .stat-value {
+      font-size: 2.2rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    /* 🎬 MENU */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 5, 15, 0.85);
+      backdrop-filter: blur(25px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: 0.5s;
+    }
+
+    .modal {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 60px;
+      border-radius: 50px;
+      max-width: 500px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+    }
+
+    .mega-title {
+      font-size: 3.5rem;
+      font-weight: 900;
+      margin-bottom: 15px;
+      letter-spacing: -3px;
+      background: linear-gradient(to bottom, #fff 0%, var(--nature) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 20px rgba(74, 222, 128, 0.4));
+    }
+
+    .btn-action {
+      background: var(--accent);
+      color: #000;
+      padding: 22px 50px;
+      border-radius: 100px;
+      font-size: 1.5rem;
+      font-weight: 900;
+      border: none;
+      cursor: pointer;
+      transition: 0.3s;
+      box-shadow: 0 15px 40px rgba(255, 190, 11, 0.3);
+      width: 100%;
+      margin-top: 30px;
+    }
+
+    .btn-action:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 20px 50px rgba(255, 190, 11, 0.5);
+    }
+
+    .btn-quit {
+      background: transparent;
+      color: #fff;
+      margin-top: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 12px;
+      border-radius: 100px;
+      width: 100%;
+      cursor: pointer;
+      opacity: 0.6;
+      font-weight: 700;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="hud">
+    <div class="stat-box">
+      <div class="stat-label">Best Run</div>
+      <div class="stat-value" id="highScore">0000</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Eco Energy</div>
+      <div class="stat-value" id="currentScore">0000</div>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="overlay" class="overlay">
+    <div class="modal">
+      <div class="mega-title">ECO RUNNER</div>
+      <p id="subtext" style="opacity:0.7; font-size:1.15rem; line-height:1.7;">Nature is retreating. Sprint through the
+        wilderness, harvest kinetic energy, and leap over the industrial waste.</p>
+      <button class="btn-action" onclick="initGame()">PLAY NOW</button>
+      <button class="btn-quit" onclick="location.href='../games.html'">LEAVE FOREST</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const scoreEl = document.getElementById('currentScore');
+    const highEl = document.getElementById('highScore');
+
+    let w, h;
+    let active = false;
+    let score = 0;
+    let high = parseInt(localStorage.getItem('eco_runner_high') || 0);
+    let time = 0;
+
+    // Player State
+    const player = {
+      x: 0, y: 0, w: 80, h: 80,
+      dy: 0,
+      gravity: 0.8,
+      jumpForce: -18,
+      isGrounded: false,
+      frame: 0,
+      tilt: 0
+    };
+
+    let layers = [];
+    let entities = [];
+    let particles = [];
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      player.x = w * 0.15;
+      player.y = h - 200;
+      initLayers();
+    }
+
+    function initLayers() {
+      layers = [];
+      // Sky/Clouds far
+      layers.push({ speed: 0.1, items: Array(5).fill(0).map(() => ({ x: Math.random() * w, y: Math.random() * h * 0.4, w: 200 + Math.random() * 150, h: 60, col: '#fff' })) });
+      // Mountains far
+      layers.push({ speed: 0.3, items: Array(4).fill(0).map((_, i) => ({ x: i * w / 3, y: h - 400, w: w * 0.8, h: 300, col: '#7dcfb6' })) });
+      // Forest mid
+      layers.push({ speed: 1.2, items: Array(6).fill(0).map((_, i) => ({ x: i * w / 5, y: h - 180, w: 120, h: 250, type: 'tree' })) });
+      // Ground near
+      layers.push({ speed: 5.0, items: Array(20).fill(0).map((_, i) => ({ x: i * 150, y: h - 100, w: 151, h: 100, col: '#166534' })) });
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    highEl.innerText = high.toString().padStart(4, '0');
+
+    function initGame() {
+      active = true;
+      score = 0;
+      entities = [];
+      particles = [];
+      player.y = h - 180;
+      player.dy = 0;
+      player.isGrounded = true;
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.style.visibility = 'hidden', 500);
+      requestAnimationFrame(gameLoop);
+    }
+
+    async function savePoints() {
+      const email = localStorage.getItem("userEmail");
+      if (email && typeof score !== 'undefined' && score > 0) {
+        console.log("Saving score:", score);
+        try {
+          const res = await fetch("/api/users/addPoints", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              email: email, 
+              points_to_add: score,
+              game_name: "Eco Runner"
+            })
+          });
+          const data = await res.json();
+          console.log("Score saved successfully:", data);
+        } catch (e) {
+          console.error("Failed to save score:", e);
+        }
+      }
+    }
+
+    async function gameWin() {
+      active = false;
+      await savePoints();
+      overlay.style.visibility = 'visible';
+      overlay.style.opacity = '1';
+      document.querySelector('.mega-title').innerText = "MISSION SUCCESS";
+      document.getElementById('subtext').innerHTML = `You have successfully traversed the forest and harvested enough energy.<br><br>Energy Captured: <span style="font-size:2.8rem; color:var(--accent); font-weight:900;">${score}</span>`;
+      document.querySelector('.btn-action').innerText = "PLAY AGAIN";
+      
+      if (!document.getElementById('dash-btn')) {
+        const btn = document.createElement('button');
+        btn.id = 'dash-btn';
+        btn.className = 'btn-quit';
+        btn.style.marginTop = '15px';
+        btn.style.background = 'var(--nature-dark)';
+        btn.innerText = "RETURN TO DASHBOARD";
+        btn.onclick = () => location.href = '../student.html';
+        document.querySelector('.modal').appendChild(btn);
+      }
+    }
+
+    async function gameOver() {
+      active = false;
+      await savePoints();
+      if (score > high) {
+        high = score;
+        localStorage.setItem('eco_runner_high', high);
+        highEl.innerText = high.toString().padStart(4, '0');
+      }
+      overlay.style.visibility = 'visible';
+      overlay.style.opacity = '1';
+      document.querySelector('.mega-title').innerText = "POWER CUT";
+      document.getElementById('subtext').innerHTML = `You struck industrial pollution. Kinetic harvesting sequence terminated.<br><br>Energy Captured: <span style="font-size:2.8rem; color:var(--accent); font-weight:900;">${score}</span>`;
+      document.querySelector('.btn-action').innerText = "TRY AGAIN";
+      
+      if (!document.getElementById('dash-btn')) {
+        const btn = document.createElement('button');
+        btn.id = 'dash-btn';
+        btn.className = 'btn-quit';
+        btn.style.marginTop = '15px';
+        btn.style.background = 'var(--nature-dark)';
+        btn.innerText = "RETURN TO DASHBOARD";
+        btn.onclick = () => location.href = '../student.html';
+        document.querySelector('.modal').appendChild(btn);
+      }
+    }
+
+    function drawPlayer() {
+      ctx.save();
+      ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
+
+      // Tilt based on jump/fall
+      player.tilt = player.dy * 0.02;
+      ctx.rotate(player.tilt);
+
+      const bounce = player.isGrounded ? Math.sin(time * 0.2) * 5 : 0;
+
+      // Character Body (SVG style)
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath();
+      ctx.roundRect(-player.w / 2, -player.h / 2 + bounce, player.w, player.h, 20);
+      ctx.fill();
+
+      // Eyes
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(15, -15 + bounce, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(35, -15 + bounce, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(18 + Math.sin(time * 0.1) * 2, -15 + bounce, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(38 + Math.sin(time * 0.1) * 2, -15 + bounce, 4, 0, Math.PI * 2); ctx.fill();
+
+      // Running Legs (Simulated)
+      if (player.isGrounded) {
+        ctx.fillStyle = '#166534';
+        const legH = 20;
+        ctx.fillRect(-20, player.h / 2 - 10, 15, Math.sin(time * 0.3) * 15 + 15);
+        ctx.fillRect(5, player.h / 2 - 10, 15, Math.cos(time * 0.3) * 15 + 15);
+      }
+
+      ctx.restore();
+
+      // Trail particles when grounded
+      if (player.isGrounded && Math.random() > 0.5) {
+        particles.push({ x: player.x, y: player.y + player.h, vx: -2 - Math.random() * 3, vy: -Math.random() * 2, size: 5, life: 1, col: 'rgba(255,255,255,0.3)' });
+      }
+    }
+
+    function spawnEntity() {
+      const type = Math.random() > 0.4 ? 'obstacle' : 'energy';
+      entities.push({
+        type,
+        x: w + 100,
+        y: type === 'obstacle' ? h - 160 : h - 300 - Math.random() * 150,
+        w: type === 'obstacle' ? 60 : 40,
+        h: type === 'obstacle' ? 60 : 40,
+        pulse: 0
+      });
+    }
+
+    function gameLoop() {
+      if (!active) return;
+      time++;
+
+      // Clear sky
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, 0, w, h);
+
+      // Draw Parallax Layers
+      layers.forEach(layer => {
+        layer.items.forEach(item => {
+          item.x -= layer.speed;
+          if (item.x + item.w < 0) item.x = w;
+
+          ctx.fillStyle = item.col || '#2d4a3e';
+          if (item.type === 'tree') {
+            // Draw minimalist tree
+            ctx.fillStyle = '#064e3b';
+            ctx.beginPath();
+            ctx.moveTo(item.x, item.y + item.h);
+            ctx.lineTo(item.x + item.w / 2, item.y);
+            ctx.lineTo(item.x + item.w, item.y + item.h);
+            ctx.fill();
+          } else {
+            ctx.fillRect(item.x, item.y, item.w, item.h);
+          }
+        });
+      });
+
+      // Player Physics
+      player.dy += player.gravity;
+      player.y += player.dy;
+
+      const groundY = h - 180;
+      if (player.y > groundY) {
+        player.y = groundY;
+        player.dy = 0;
+        player.isGrounded = true;
+      }
+
+      drawPlayer();
+
+      // Spawning
+      if (time % Math.max(30, 80 - Math.floor(score / 200)) === 0) spawnEntity();
+
+      // Entities Logic
+      entities = entities.filter(ent => {
+        ent.x -= 8 + (score / 500);
+        ent.pulse += 0.1;
+
+        ctx.save();
+        ctx.translate(ent.x, ent.y);
+
+        if (ent.type === 'obstacle') {
+          // Industrial barrel
+          ctx.fillStyle = '#f43f5e';
+          ctx.fillRect(0, 0, ent.w, ent.h);
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+          ctx.strokeRect(5, 5, ent.w - 10, ent.h - 10);
+          // Toxic symbol
+          ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ent.w / 2, ent.h / 2, 10, 0, Math.PI * 2); ctx.fill();
+        } else {
+          // Energy sphere
+          const s = 1 + Math.sin(ent.pulse) * 0.2;
+          ctx.scale(s, s);
+          const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, ent.w / 2);
+          grad.addColorStop(0, '#fff'); grad.addColorStop(1, '#ffbe0b');
+          ctx.fillStyle = grad;
+          ctx.beginPath(); ctx.arc(0, 0, ent.w / 2, 0, Math.PI * 2); ctx.fill();
+          // Glow
+          ctx.shadowBlur = 20; ctx.shadowColor = '#ffbe0b';
+        }
+        ctx.restore();
+
+        // Collision check
+        const px = player.x + 15; const py = player.y + 15;
+        const pw = player.w - 30; const ph = player.h - 30;
+
+        if (ent.x < px + pw && ent.x + ent.w > px && ent.y < py + ph && ent.y + ent.h > py) {
+          if (ent.type === 'energy') {
+            score += 100;
+            scoreEl.innerText = score.toString().padStart(4, '0');
+            for (let i = 0; i < 10; i++) particles.push({ x: ent.x, y: ent.y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, size: 4, life: 1, col: '#ffbe0b' });
+            return false;
+          } else {
+            gameOver();
+          }
+        }
+
+        return ent.x > -100;
+      });
+
+      // Particles
+      particles = particles.filter(p => {
+        p.x += p.vx; p.y += p.vy;
+        p.life -= 0.02;
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.col;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        return p.life > 0;
+      });
+
+      if (active) {
+        score += 1;
+        scoreEl.innerText = score.toString().padStart(4, '0');
+        
+        if (score >= 1500) {
+          gameWin();
+        }
+        
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+    function jump() {
+      if (player.isGrounded) {
+        player.dy = player.jumpForce;
+        player.isGrounded = false;
+      }
+    }
+
+    window.addEventListener('keydown', e => { if (e.code === 'Space') jump(); });
+    window.addEventListener('mousedown', jump);
+    window.addEventListener('touchstart', jump);
+  </script>
+</body>
+
+</html>
+

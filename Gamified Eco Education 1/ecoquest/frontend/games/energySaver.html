@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Energy Saver Puzzle</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{font-family:"Poppins",sans-serif;margin:0;background:linear-gradient(135deg,#113f1a,#0b6b2d);color:#fff;display:flex;flex-direction:column;min-height:100vh}
+    .wrap{max-width:760px;margin:28px auto;padding:20px}
+    h1{text-align:center;margin:6px 0}
+    .card{background:rgba(255,255,255,0.06);padding:16px;border-radius:12px}
+    .question{font-size:18px;margin:10px 0}
+    .options{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+    button.opt{padding:12px;border-radius:8px;border:none;background:#e9f9e9;color:#064017;font-weight:600;cursor:pointer}
+    .info{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+    .small{opacity:0.9}
+    .btns{margin-top:14px;display:flex;gap:10px}
+    .btn{padding:10px 14px;border-radius:8px;border:none;background:#ffe600;color:#064017;font-weight:600;cursor:pointer}
+    .scorebox{margin-top:12px;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>💡 Energy Saver Puzzle</h1>
+    <div class="card">
+      <div class="info">
+        <div>Time: <span id="time">30</span>s</div>
+        <div>Score: <span id="score">0</span></div>
+      </div>
+
+      <div id="quizArea"></div>
+
+      <div class="btns">
+        <button class="btn" id="startBtn">Start</button>
+        <button class="btn" onclick="window.location.href='games.html'">Back</button>
+      </div>
+
+      <div class="scorebox">
+        <div>High score (local): <strong id="high">0</strong></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const questions = [
+  { q:"Which action saves the most electricity at home?", opts:["Leaving lights on","Switching off unused devices","Running appliances all night","Keeping windows open"], a:1 },
+  { q:"Which light bulb is most energy efficient?", opts:["Incandescent","Halogen","LED","CFL"], a:2 },
+  { q:"Which is an eco-friendly commute?", opts:["Solo car daily","Motorbike","Bicycle","Taxi"], a:2 },
+  { q:"What reduces AC energy use?", opts:["Close curtains & set temp moderate","Keep windows open","Set lowest temperature","Turn AC on/off rapidly"], a:0 },
+  { q:"What helps reduce electrical waste?", opts:["Throw old batteries","Recycle them","Burn them","Flush them"], a:1 }
+];
+
+let timer = 30, idx=0, score=0, interval=null;
+const timeEl=document.getElementById('time'), scoreEl=document.getElementById('score'), quizArea=document.getElementById('quizArea');
+const startBtn=document.getElementById('startBtn'), highEl=document.getElementById('high');
+
+function loadHigh(){ highEl.innerText = localStorage.getItem('energy_high') || 0 }
+loadHigh();
+
+function startGame(){
+  idx=0; score=0; timer=30;
+  startBtn.disabled=true;
+  renderQuestion();
+  scoreEl.innerText = score;
+  timeEl.innerText = timer;
+  interval = setInterval(()=>{
+    timer--; timeEl.innerText = timer;
+    if(timer<=0){ endGame(); }
+  },1000);
+}
+
+function renderQuestion(){
+  if(idx >= questions.length){ endGame(); return; }
+  const item = questions[idx];
+  quizArea.innerHTML = `
+    <div class="question">${item.q}</div>
+    <div class="options">
+      ${item.opts.map((o,i)=>`<button class="opt" data-i="${i}">${String.fromCharCode(65+i)}. ${o}</button>`).join('')}
+    </div>
+  `;
+  document.querySelectorAll('.opt').forEach(b=>{
+    b.onclick = () => {
+      const chosen = Number(b.dataset.i);
+      if(chosen === item.a){
+        // speed bonus: more time left = more points
+        score += 10 + Math.floor(timer/3);
+      } else {
+        score = Math.max(0, score - 3);
+      }
+      scoreEl.innerText = score;
+      idx++;
+      renderQuestion();
+    };
+  });
+}
+
+function endGame(){
+  clearInterval(interval);
+  startBtn.disabled=false;
+  quizArea.innerHTML = `<p style="margin-top:10px">Game over. Final score: <strong>${score}</strong></p>`;
+  const prev = Number(localStorage.getItem('energy_high')||0);
+  if(score>prev){ localStorage.setItem('energy_high',score); highEl.innerText = score; alert('New high score! 🎉'); }
+}
+
+startBtn.addEventListener('click', startGame);
+</script>
+</body>
+</html>

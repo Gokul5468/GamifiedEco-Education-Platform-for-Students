@@ -1,0 +1,147 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Create Challenge | EcoQuest</title>
+  <link rel="stylesheet" href="../style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body {
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+      display: flex;
+    }
+
+    .back-nav {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.6;
+      transition: 0.3s;
+      z-index: 100;
+    }
+
+    .back-nav:hover {
+      opacity: 1;
+      transform: translateX(-5px);
+    }
+
+    @media (max-width: 500px) {
+      .back-nav {
+        top: 20px;
+        left: 20px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <a href="../teacher.html" class="back-nav">← Teacher Portal</a>
+
+  <div class="glass-container" style="max-width: 650px; padding: 50px;">
+    <div style="text-align:center; margin-bottom: 40px;">
+      <h1 style="font-size: 2.8rem; letter-spacing: -1.5px; margin-bottom: 5px; font-weight: 900; color: #fff;">🎯 New
+        Mission</h1>
+      <p style="opacity: 0.7; font-weight: 500; font-size: 1.1rem; color: var(--text-muted);">Design a challenge for
+        your Eco Club.</p>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Select Target Club</label>
+      <select id="club_id" class="input-field" style="appearance: none; background: rgba(0,0,0,0.2);">
+        <option value="1">Global Eco Central</option>
+        <option value="2">Ocean Guard Squad</option>
+        <option value="3">Sky Patrol Rangers</option>
+      </select>
+    </div>
+
+    <div class="input-group" style="margin-top: 20px;">
+      <label class="input-label">Challenge Title</label>
+      <input id="title" class="input-field" placeholder="e.g. The 5-Tree Plantation Drive">
+    </div>
+
+    <div class="input-group" style="margin-top: 20px;">
+      <label class="input-label">Mission Briefing</label>
+      <textarea id="description" class="input-field" style="height: 120px; resize: none;"
+        placeholder="Explain the rules, objectives, and importance of this mission..."></textarea>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+      <div class="input-group">
+        <label class="input-label">Reward Points</label>
+        <input type="number" id="points" class="input-field" placeholder="100">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Deadline</label>
+        <input type="date" id="deadline" class="input-field">
+      </div>
+    </div>
+
+    <button class="btn-premium" style="margin-top: 40px; font-size: 1.1rem;" onclick="createChallenge()">Broadcast
+      Mission to Rangers</button>
+    <p id="msg" style="text-align:center; margin-top:20px; font-weight:800; min-height: 25px; font-size: 1.05rem;"></p>
+  </div>
+
+  <script>
+    if (!localStorage.getItem('userEmail') || (localStorage.getItem('userRole') !== 'teacher' && localStorage.getItem('userRole') !== 'admin')) {
+      window.location.href = '../login.html';
+    }
+
+    function createChallenge() {
+      const title = document.getElementById('title').value.trim();
+      if (!title) {
+        document.getElementById('msg').style.color = '#ff5252';
+        document.getElementById('msg').innerText = "Mission title is required!";
+        return;
+      }
+
+      document.getElementById('msg').style.color = '#affc41';
+      document.getElementById('msg').innerText = "🚀 Mission Broadcasted to All Club Members!";
+
+      setTimeout(() => {
+        window.location.href = '../teacher.html';
+      }, 2000);
+    }
+
+    // Populate Forest Background
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute';
+      tree.style.bottom = '0';
+      tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05';
+      tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+  </script>
+</body>
+
+</html>
+

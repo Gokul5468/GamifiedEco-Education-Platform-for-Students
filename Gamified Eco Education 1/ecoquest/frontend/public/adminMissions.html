@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="UTF-8">
+  <title>Mission Monitor | Admin Console</title>
+  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .posts-feed {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+
+    .post-card {
+      background: var(--glass);
+      backdrop-filter: blur(25px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--card-radius);
+      padding: 25px;
+      transition: var(--transition);
+      animation: fadeInDown 0.6s ease-out;
+    }
+
+    .post-card:hover {
+      transform: translateY(-8px);
+      background: var(--glass-hover);
+    }
+
+    .post-image {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      border-radius: 15px;
+      margin: 15px 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .post-author {
+      font-weight: 800;
+      font-size: 0.9rem;
+      color: #fb8500;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .post-club {
+      font-size: 0.75rem;
+      opacity: 0.6;
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .post-caption {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #fff;
+    }
+
+    .back-nav {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.6;
+      transition: 0.3s;
+      z-index: 100;
+    }
+
+    .back-nav:hover {
+      opacity: 1;
+      transform: translateX(-5px);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <a href="admin.html" class="back-nav">← Admin Console</a>
+
+  <div class="dashboard-wrapper">
+    <div style="text-align:center; margin-bottom: 50px;">
+      <h1 style="font-size: 3rem; font-weight: 900; margin-bottom: 5px; letter-spacing: -1.5px; color: #fb8500;">📡 Mission Monitor</h1>
+      <p style="opacity: 0.7; font-weight: 500; color: var(--text-muted);">Platform-wide feed of environmental activity.</p>
+    </div>
+
+    <!-- Posts Feed -->
+    <div class="posts-feed" id="postsContainer">
+      <p style="text-align:center; grid-column: 1/-1;">Connecting to global ranger satellites...</p>
+    </div>
+  </div>
+
+  <script>
+    const role = localStorage.getItem("userRole");
+    if (role !== "admin") { window.location.href = "login.html"; }
+
+    async function loadAllPosts() {
+      const container = document.getElementById("postsContainer");
+      try {
+        const res = await fetch("/api/admin/allPosts");
+        const j = await res.json();
+
+        if (!j.success || j.posts.length === 0) {
+          container.innerHTML = "<p style='text-align:center; opacity:0.6; padding: 50px; font-size: 1.2rem;'>No activity detected on the planet yet.</p>";
+          return;
+        }
+
+        container.innerHTML = j.posts.map(p => `
+            <div class="post-card">
+              <span class="post-club">📍 ${p.clubs?.club_name || "Unknown Club"}</span>
+              <div class="post-author">${p.profiles?.full_name || "Eco Ranger"}</div>
+              ${p.image_url ? (p.image_url.includes('drive.google.com') ? `<a href="${p.image_url}" target="_blank" style="display:block; margin: 10px 0; color: #fb8500; font-weight:bold;">📂 View Mission Attachment</a>` : `<img src="${p.image_url}" class="post-image" onerror="this.src='https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1000'">`) : ""}
+              <div class="post-caption">${p.caption}</div>
+              <div style="font-size: 0.7rem; opacity: 0.4; margin-top: 15px;">${new Date(p.created_at).toLocaleString()}</div>
+            </div>
+        `).join("");
+      } catch (err) { 
+        container.innerHTML = "<p style='text-align:center; color:#ff5252;'>Satellite connection lost.</p>";
+        console.error(err); 
+      }
+    }
+
+    // Populate Forest Background
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute'; tree.style.bottom = '0'; tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05'; tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+
+    loadAllPosts();
+  </script>
+</body>
+</html>

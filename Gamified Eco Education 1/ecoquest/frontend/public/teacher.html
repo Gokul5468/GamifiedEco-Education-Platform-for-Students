@@ -1,0 +1,145 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Teacher Portal | EcoQuest</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <div class="dashboard-wrapper">
+    <header class="header-premium">
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+      <div class="user-profile">
+        <div id="avatar" class="avatar-circle"
+          style="background: linear-gradient(135deg, #48cae4 0%, #0077b6 100%); color: #fff;">TR</div>
+        <div class="student-info">
+          <h2 id="greeting" style="font-size: 2rem; margin: 0; font-weight: 800; letter-spacing: -1px; color: #fff;">
+            Welcome, Educator</h2>
+          <div id="meta"
+            style="font-weight: 600; opacity: 0.9; color: #48cae4; margin-top: 4px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">
+            Teacher Portal</div>
+        </div>
+      </div>
+      <div>
+        <button class="btn-premium"
+          style="width: auto; padding: 12px 25px; margin-top: 0; background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: #fff; text-transform: none;"
+          onclick="logout()">Sign Out</button>
+      </div>
+    </header>
+
+    <main class="grid-premium">
+      <!-- 🎯 CREATE CHALLENGE -->
+      <div class="card-premium green" onclick="location.href='clubs/createChallenge.html'">
+        <div class="icon-wrap">🎯</div>
+        <h3>Create Challenge</h3>
+        <p>Design custom environmental missions for your students and reward them with points.</p>
+        <div class="action-hint" style="color: #74c69d;">Launch Mission →</div>
+      </div>
+
+      <!-- 📈 TRACK PROGRESS -->
+      <div class="card-premium blue" onclick="alert('Progress Monitor is coming soon!')">
+        <div class="icon-wrap">📈</div>
+        <h3>Track Progress</h3>
+        <p>Monitor your class's overall eco-impact and individual student achievements.</p>
+        <div class="action-hint" style="color: #48cae4;">View Analytics →</div>
+      </div>
+
+      <!-- 📁 TEACHING TOOLKIT -->
+      <div class="card-premium yellow" onclick="alert('Toolkit is being updated!')">
+        <div class="icon-wrap">📁</div>
+        <h3>Teaching Toolkit</h3>
+        <p>Access curated lesson plans and interactive materials for environmental science.</p>
+        <div class="action-hint" style="color: var(--accent);">Access Files →</div>
+      </div>
+
+      <!-- 🏘️ MANAGE GROUPS -->
+      <div class="card-premium purple" onclick="location.href='clubs.html'">
+        <div class="icon-wrap">🏘️</div>
+        <h3>Manage Groups</h3>
+        <p>Oversee your classroom's eco-clubs and moderate student activity posts.</p>
+        <div class="action-hint" style="color: #9d4edd;">Go to Clubs →</div>
+      </div>
+    </main>
+
+    <div style="margin-top:60px; text-align:center;">
+      <p style="opacity:0.6; font-size: 1rem; max-width: 600px; margin: 0 auto; line-height: 1.6;">Empowering the next
+        generation of environmental leaders through classroom action.</p>
+    </div>
+  </div>
+
+  <script>
+    async function loadTeacherInfo() {
+      const email = localStorage.getItem('userEmail');
+      const role = localStorage.getItem('userRole');
+      if (!email || role !== 'teacher') {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      try {
+        const res = await fetch(`http://localhost:4000/api/profile?email=${encodeURIComponent(email)}`);
+        const data = await res.json();
+        if (res.status === 200 && data.full_name) {
+          document.getElementById('greeting').innerText = `Hello, ${data.full_name.split(' ')[0]} 🍎`;
+          document.getElementById('meta').innerText = `Instructor • ${data.school_code || 'EcoQuest Academy'}`;
+          document.getElementById('avatar').innerText = data.full_name.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = 'login.html';
+    }
+
+    // Populate Forest Background
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute';
+      tree.style.bottom = '0';
+      tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05';
+      tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+
+    window.addEventListener('load', loadTeacherInfo);
+  </script>
+</body>
+
+</html>
+

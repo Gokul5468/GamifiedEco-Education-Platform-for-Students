@@ -1,0 +1,240 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script>
+    // Auto API base: works both via file:// and http://localhost:4000
+    (function () {
+      var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+      if (!base) return;
+      var _f = window.fetch.bind(window);
+      window.fetch = function (url, opts) {
+        if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+        return _f(url, opts);
+      };
+    })();
+  </script>
+  <meta charset="utf-8" />
+  <title>EcoQuest — Embark on a Green Journey</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2d6a4f;
+      --nature-dark: #081c15;
+      --accent: #f9d423;
+    }
+
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+      overflow-x: hidden;
+      background: var(--nature-dark);
+    }
+
+    /* HERO SECTION */
+    #hero {
+      position: relative;
+      height: 100vh;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    #hero-video {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      min-width: 100%;
+      min-height: 100%;
+      width: auto;
+      height: auto;
+      z-index: 0;
+      transform: translate(-50%, -50%);
+      object-fit: cover;
+    }
+
+
+
+    /* CONTENT */
+    .content-wrap {
+      position: relative;
+      z-index: 10;
+      padding: 0 30px;
+      max-width: 900px;
+      animation: slideUp 1s cubic-bezier(0.19, 1, 0.22, 1);
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(50px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h1 {
+      font-size: 8rem;
+      font-weight: 900;
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: -6px;
+      line-height: 0.8;
+      color: #fff;
+      filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.6));
+    }
+
+    h1 span {
+      color: var(--accent);
+      display: block;
+      font-size: 5rem;
+      letter-spacing: 20px;
+      margin-left: 20px;
+    }
+
+    p {
+      font-size: 1.6rem;
+      opacity: 0.95;
+      margin: 30px auto 50px;
+      font-weight: 400;
+      color: #fff;
+      max-width: 650px;
+      line-height: 1.4;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+    }
+
+    .cta-group {
+      display: flex;
+      gap: 25px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 22px 55px;
+      border-radius: 100px;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .btn-join {
+      background: rgba(249, 212, 35, 0.8);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #0d2a1c;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-login {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+    }
+
+    .btn:hover {
+      transform: translateY(-12px) scale(1.05);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    .district-link {
+      color: rgba(255, 255, 255, 0.6);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-top: 25px;
+      display: block;
+      transition: color 0.3s;
+    }
+
+    .district-link:hover {
+      color: var(--accent);
+    }
+
+    @media (max-width: 1024px) {
+      h1 {
+        font-size: 6rem;
+      }
+
+      h1 span {
+        font-size: 3.5rem;
+        letter-spacing: 12px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 4.5rem;
+        letter-spacing: -3px;
+      }
+
+      h1 span {
+        font-size: 2.8rem;
+        letter-spacing: 8px;
+      }
+
+      p {
+        font-size: 1.2rem;
+        margin: 20px auto 40px;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 18px 30px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 3.5rem;
+      }
+
+      h1 span {
+        font-size: 2rem;
+        letter-spacing: 5px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="hero">
+    <video autoplay muted loop playsinline id="hero-video">
+      <source src="video1.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+
+    <div class="content-wrap">
+      <h1>ECO<span>QUEST</span></h1>
+      <p>The planet's future is in your hands. Embark on interactive missions, earn legendary badges, and lead your
+        school to victory.</p>
+
+      <div class="cta-group">
+        <a href="signup.html" class="btn btn-join">Begin Quest</a>
+        <a href="login.html" class="btn btn-login">Login</a>
+        <div style="width: 100%; display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
+          <a href="login.html" class="district-link">Admin Login →</a>
+          <a href="addSchool.html" class="district-link">School District? Register Your Institution →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
