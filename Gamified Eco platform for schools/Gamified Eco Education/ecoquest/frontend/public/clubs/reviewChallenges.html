@@ -1,0 +1,213 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Review Submissions | EcoQuest</title>
+  <link rel="stylesheet" href="../style.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .submission-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+
+    .submission-card {
+      background: var(--glass);
+      backdrop-filter: blur(25px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--card-radius);
+      padding: 35px;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      animation: fadeInDown 0.6s ease-out;
+    }
+
+    .submission-card:hover {
+      transform: translateY(-8px);
+      background: var(--glass-hover);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .ranger-meta {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .ranger-avatar {
+      width: 55px;
+      height: 55px;
+      background: linear-gradient(135deg, var(--accent) 0%, #ff9d00 100%);
+      border-radius: 15px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: #1b4332;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .submission-img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 20px;
+      margin: 20px 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-action-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 25px;
+    }
+
+    .back-nav {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.6;
+      transition: 0.3s;
+      z-index: 100;
+    }
+
+    .back-nav:hover {
+      opacity: 1;
+      transform: translateX(-5px);
+    }
+
+    @media (max-width: 768px) {
+      .back-nav {
+        top: 20px;
+        left: 20px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <a href="clubHome.html" class="back-nav">← Club Sanctuary</a>
+
+  <div class="dashboard-wrapper">
+    <div style="text-align:center; margin-bottom: 60px;">
+      <h1 style="font-size: 3rem; font-weight: 900; margin-bottom: 5px; letter-spacing: -1.5px; color: #fff;">⚖️ Mission
+        Review</h1>
+      <p style="opacity: 0.7; font-weight: 500; color: var(--text-muted);">Verify and approve environmental impact
+        reports from your rangers.</p>
+    </div>
+
+    <div id="container" class="submission-grid">
+      <p style="text-align:center; grid-column:1/-1;">Syncing with mission archives...</p>
+    </div>
+  </div>
+
+  <script>
+    async function loadSubmissions() {
+      const school_code = localStorage.getItem("school_code");
+      const container = document.getElementById("container");
+
+      try {
+        const res = await fetch("http://localhost:4000/api/clubs/pendingSubmissions?school_code=" + school_code);
+        const data = await res.json();
+
+        if (!data.length) {
+          container.innerHTML = "<p style='text-align:center; grid-column:1/-1; opacity:0.6; padding: 50px; font-size: 1.2rem;'>No pending reports in the queue. All systems clear.</p>";
+          return;
+        }
+
+        container.innerHTML = data.map(sub => {
+          const initials = sub.full_name.split(" ").map(x => x[0]).join("").slice(0, 2);
+          return `
+          <div class="submission-card">
+            <div class="ranger-meta">
+              <div class="ranger-avatar">${initials}</div>
+              <div>
+                <div style="font-weight: 800; font-size: 1.15rem; color: #fff;">${sub.full_name}</div>
+                <div style="font-size: 0.85rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px;">${sub.class_name} • ${sub.school_code}</div>
+              </div>
+            </div>
+
+            <h3 style="font-weight: 900; font-size: 1.4rem; color: var(--accent); margin: 0 0 10px;">${sub.challenge_title}</h3>
+            <p style="line-height: 1.6; opacity: 0.8; font-size: 1rem;">${sub.description || "Verification report submitted."}</p>
+
+            ${sub.image_url ? `<img class="submission-img" src="${sub.image_url}" onerror="this.src='https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1000'">` : ""}
+
+            <div class="btn-action-group">
+                <button class="btn-premium" style="margin-top:0; background: #2ecc71; color: #fff; font-size: 0.95rem; padding: 12px;" onclick="approve(${sub.id})">Approve</button>
+                <button class="btn-premium" style="margin-top:0; background: #e74c3c; color: #fff; font-size: 0.95rem; padding: 12px;" onclick="rejectSub(${sub.id})">Reject</button>
+            </div>
+          </div>
+        `;
+        }).join("");
+      } catch (err) { console.error(err); }
+    }
+
+    async function approve(id) {
+      if (!confirm("Grant impact points for this mission?")) return;
+      await fetch("http://localhost:4000/api/clubs/approveSubmission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submission_id: id })
+      });
+      loadSubmissions();
+    }
+
+    async function rejectSub(id) {
+      if (!confirm("Reject this report and notify the ranger?")) return;
+      await fetch("http://localhost:4000/api/clubs/rejectSubmission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submission_id: id })
+      });
+      loadSubmissions();
+    }
+
+    // Populate Forest Background
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute';
+      tree.style.bottom = '0';
+      tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05';
+      tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+
+    loadSubmissions();
+  </script>
+</body>
+
+</html>
+

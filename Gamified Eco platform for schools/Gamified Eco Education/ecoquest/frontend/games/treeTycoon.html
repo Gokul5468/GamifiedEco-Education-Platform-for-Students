@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Tree Plantation Tycoon</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body{margin:0;font-family:"Poppins",sans-serif;background:linear-gradient(135deg,#2d9c3c,#0b5019);color:#fff;text-align:center}
+    h1{margin:18px 0}
+    #score{font-size:20px}
+    #game-area{width:94%;max-width:920px;height:420px;margin:18px auto;border-radius:12px;background:rgba(255,255,255,0.06);position:relative;overflow:hidden;padding:8px;border:1px solid rgba(255,255,255,0.04)}
+    .tree{width:48px;position:absolute;bottom:10px;transition:transform 1s,opacity 1s;cursor:pointer}
+    #plant-btn{margin:12px;padding:12px 18px;border:none;border-radius:10px;background:#0aa84b;color:#fff;font-weight:700;cursor:pointer}
+    .controls{display:flex;gap:8px;justify-content:center;align-items:center;margin-top:6px}
+    .hint{opacity:0.9;margin-top:8px}
+  </style>
+</head>
+<body>
+  <h1>🌳 Tree Plantation Tycoon</h1>
+  <div id="score">Trees Grown: 0  •  High: <span id="high">0</span></div>
+  <div id="game-area"></div>
+  <div class="controls">
+    <button id="plant-btn">🌱 Plant Tree</button>
+    <button onclick="resetGame()" style="background:#ffe600;color:#064017;border-radius:10px;padding:10px 12px;border:none">Reset</button>
+    <button onclick="location.href='games.html'" style="background:rgba(255,255,255,0.08);color:#fff;border-radius:10px;padding:10px 12px;border:none">Back</button>
+  </div>
+  <div class="hint">Click a young plant to accelerate growth.</div>
+
+<script>
+let score = 0;
+const area = document.getElementById('game-area');
+const highEl = document.getElementById('high');
+
+function loadHigh(){ highEl.innerText = localStorage.getItem('tree_high')||0 }
+loadHigh(); updateScore();
+
+function updateScore(){ document.getElementById('score').innerText = `Trees Grown: ${score}  •  High: ${localStorage.getItem('tree_high')||0}` }
+
+function plantTree(){
+  const img = document.createElement('img');
+  img.src = 'https://i.imgur.com/jj0Zk0P.png';
+  img.className='tree';
+  img.style.left = Math.floor(Math.random()*(area.offsetWidth-60)) + 'px';
+  img.dataset.grown = '0';
+  area.appendChild(img);
+
+  // when clicked, speed up growth
+  img.addEventListener('click', ()=>{
+    if(img.dataset.grown === '0'){
+      grow(img, true);
+    }
+  });
+
+  // auto grow in 3s
+  setTimeout(()=>grow(img,false), 1000);
+}
+
+function grow(img,fast){
+  if(img.dataset.grown === '1') return;
+  img.dataset.grown = '1';
+  // animate
+  img.src = 'https://i.imgur.com/cJJ77qT.png';
+  img.style.transform = 'scale(1.7)';
+  setTimeout(()=>{
+    // settle a bit
+    img.style.opacity = '0.95';
+    score++;
+    updateScore();
+    const prev = Number(localStorage.getItem('tree_high')||0);
+    if(score>prev){ localStorage.setItem('tree_high',score); loadHigh(); }
+  }, fast?600:1400);
+}
+
+document.getElementById('plant-btn').addEventListener('click', plantTree);
+
+function resetGame(){
+  score = 0;
+  area.innerHTML = '';
+  updateScore();
+}
+</script>
+</body>
+</html>

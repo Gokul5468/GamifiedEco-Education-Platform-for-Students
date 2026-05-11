@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+<meta charset="utf-8">
+<title>Wildlife Rescue | EcoQuest</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Outfit',sans-serif;background:#0a1a0a;color:#fff;overflow:hidden;touch-action:none;}
+  canvas{display:block;position:fixed;top:0;left:0;z-index:1;}
+
+  .hud{position:fixed;top:14px;left:0;width:100%;display:flex;justify-content:space-between;align-items:center;padding:0 14px;z-index:100;pointer-events:none;}
+  .hud-box{background:rgba(0,0,0,0.55);backdrop-filter:blur(14px);padding:8px 16px;border-radius:18px;border:1px solid rgba(255,255,255,0.1);text-align:center;}
+  .hud-label{font-size:0.58rem;text-transform:uppercase;letter-spacing:2px;color:#f59e0b;font-weight:800;}
+  .hud-val{font-size:1.5rem;font-weight:900;line-height:1.1;}
+  .fire-bar{width:130px;}
+  .fire-track{height:10px;background:rgba(255,255,255,0.1);border-radius:20px;overflow:hidden;margin-top:6px;}
+  #fireFill{height:100%;width:10%;background:linear-gradient(90deg,#facc15,#f97316,#ef4444);border-radius:20px;transition:width .3s;}
+
+  /* Fact bubble */
+  #factBox{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(5,30,15,0.94);backdrop-filter:blur(20px);border:1px solid rgba(74,222,128,0.4);padding:12px 20px;border-radius:18px;max-width:90%;text-align:center;font-size:0.9rem;line-height:1.55;z-index:300;opacity:0;transition:opacity .4s;pointer-events:none;}
+  #factBox.show{opacity:1;}
+  #factBox b{color:#4ade80;}
+
+  /* Overlay */
+  .overlay{position:fixed;inset:0;background:rgba(0,10,5,0.9);backdrop-filter:blur(28px);display:flex;align-items:center;justify-content:center;z-index:1000;transition:opacity .5s;}
+  .modal{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);padding:44px 34px;border-radius:38px;max-width:460px;width:92%;text-align:center;box-shadow:0 40px 100px rgba(0,0,0,0.6);}
+  .modal-icon{font-size:4rem;margin-bottom:10px;}
+  .modal-title{font-size:2.6rem;font-weight:900;letter-spacing:-2px;background:linear-gradient(135deg,#f59e0b,#4ade80);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:10px;filter:drop-shadow(0 0 20px rgba(245,158,11,0.5));}
+  .modal-sub{opacity:.75;font-size:1rem;line-height:1.65;margin-bottom:6px;}
+  .btn-play{background:linear-gradient(135deg,#f59e0b,#f97316);color:#000;padding:16px 36px;border-radius:100px;font-size:1.2rem;font-weight:900;border:none;cursor:pointer;width:100%;margin-top:20px;box-shadow:0 10px 30px rgba(245,158,11,0.3);transition:.3s;font-family:'Outfit',sans-serif;}
+  .btn-play:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(245,158,11,0.5);}
+  .btn-exit{background:transparent;color:#fff;margin-top:10px;border:1px solid rgba(255,255,255,0.15);padding:11px;border-radius:100px;width:100%;cursor:pointer;font-weight:700;font-family:'Outfit',sans-serif;font-size:.95rem;}
+
+  @media(max-width:600px){
+    .hud-val{font-size:1.1rem;}
+    .fire-bar{width:100px;}
+    .modal-title{font-size:2rem;}
+    .btn-play{font-size:1.05rem;padding:13px 24px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="hud-box">
+    <div class="hud-label">Rescued</div>
+    <div class="hud-val" id="scoreEl">0</div>
+  </div>
+  <div class="hud-box fire-bar">
+    <div class="hud-label">🔥 Wildfire</div>
+    <div class="fire-track"><div id="fireFill"></div></div>
+  </div>
+  <div class="hud-box">
+    <div class="hud-label">Time</div>
+    <div class="hud-val" id="timeEl">60</div>
+  </div>
+</div>
+
+<canvas id="gc"></canvas>
+<div id="factBox"><b id="factAnimal"></b> — <span id="factText"></span></div>
+
+<div id="overlay" class="overlay">
+  <div class="modal">
+    <div class="modal-icon">🌿</div>
+    <div class="modal-title" id="oTitle">WILDLIFE RESCUE</div>
+    <p class="modal-sub" id="oSub">
+      A wildfire is raging through the forest! 🔥<br>
+      Tap animals to rescue them and guide them to the <b style="color:#0ea5e9">safe blue river zone</b>.<br>
+      Learn a real eco fact every time you save an animal!
+    </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px;font-size:0.78rem;opacity:.6;">
+      <span>🖱 Click / Tap animals to rescue</span>
+    </div>
+    <button class="btn-play" onclick="startGame()">🦊 START RESCUE</button>
+    <button class="btn-exit" onclick="location.href='../games.html'">← Back to Games</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gc');
+const ctx    = canvas.getContext('2d');
+let W, H;
+
+// ── Animal Data ────────────────────────────────────────────────
+const ANIMALS = [
+  { emoji:'🦊', name:'Red Fox',     fact:'Red foxes adapt to many habitats but deforestation destroys their dens.' },
+  { emoji:'🐰', name:'Rabbit',      fact:'Rabbits are vital for soil health — their burrows aerate the earth!' },
+  { emoji:'🦌', name:'Deer',        fact:'One deer can disperse thousands of seeds across a forest each year.' },
+  { emoji:'🐨', name:'Koala',       fact:'Koalas need 100+ eucalyptus trees per individual to survive.' },
+  { emoji:'🦡', name:'Badger',      fact:'Badger setts are used by dozens of animals — they are ecosystem engineers.' },
+  { emoji:'🐿', name:'Squirrel',    fact:'Squirrels forget 74% of buried nuts, accidentally planting thousands of trees!' },
+  { emoji:'🦔', name:'Hedgehog',    fact:'Hedgehog populations have fallen 50% in 20 years due to habitat loss.' },
+  { emoji:'🐦', name:'Forest Bird', fact:'Birds control insect populations — without them, forests would be devastated.' },
+  { emoji:'🦋', name:'Butterfly',   fact:'Butterflies are key pollinators — 87% of flowering plants need them.' },
+  { emoji:'🐺', name:'Wolf',        fact:'Wolves balance ecosystems by controlling deer populations, protecting rivers.' },
+];
+
+// ── Eco Facts shown on rescue ──────────────────────────────────
+let factTimer = null;
+function showFact(animal) {
+  document.getElementById('factAnimal').innerText = animal.emoji + ' ' + animal.name;
+  document.getElementById('factText').innerText   = animal.fact;
+  const b = document.getElementById('factBox');
+  b.classList.add('show');
+  clearTimeout(factTimer);
+  factTimer = setTimeout(()=>b.classList.remove('show'), 3500);
+}
+
+// ── State ──────────────────────────────────────────────────────
+let active=false, score=0, fireLevel=10, timeLeft=60, gameFrame=0;
+let animals=[], fireParticles=[], rescueParticles=[], trees=[], stars=[];
+let timerInterval=null;
+
+// ── Resize ─────────────────────────────────────────────────────
+function resize(){
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  buildTrees();
+  stars = Array(80).fill(0).map(()=>({x:Math.random()*W,y:Math.random()*H*.4,r:Math.random()*1.2+.3}));
+}
+window.addEventListener('resize', resize);
+resize();
+
+function buildTrees(){
+  trees=[];
+  const n = Math.floor(W/60);
+  for(let i=0;i<n;i++) trees.push({
+    x: (i/n)*W + Math.random()*40,
+    y: safeZoneY() - 20 - Math.random()*120,
+    h: 80+Math.random()*80,
+    w: 50+Math.random()*30,
+    col: `hsl(${130+Math.random()*20},${50+Math.random()*20}%,${20+Math.random()*15}%)`
+  });
+}
+
+function safeZoneY(){ return H*0.8; }
+
+// ── Animal class ───────────────────────────────────────────────
+class Animal {
+  constructor(){
+    const a = ANIMALS[Math.floor(Math.random()*ANIMALS.length)];
+    this.emoji   = a.emoji;
+    this.name    = a.name;
+    this.fact    = a.fact;
+    this.x       = Math.random()*(W-80)+40;
+    this.y       = 60 + Math.random()*(safeZoneY()-120);
+    this.vx      = (Math.random()-.5)*1.5;
+    this.vy      = (Math.random()-.5)*1.5;
+    this.size    = 36;
+    this.scared  = false;   // running toward safe zone
+    this.rescued = false;
+    this.done    = false;
+    this.bob     = Math.random()*Math.PI*2;
+    this.pulse   = 0;
+  }
+
+  update(){
+    this.bob += 0.06;
+    if(this.pulse > 0) this.pulse -= 0.04;
+
+    if(this.scared){
+      // Run toward safe zone bottom
+      const ty = safeZoneY() + 30;
+      this.vy += (ty - this.y)*0.008;
+      this.vx *= 0.92;
+      this.vy *= 0.92;
+      if(this.y >= safeZoneY()){
+        this.rescued = true;
+        score++;
+        document.getElementById('scoreEl').innerText = score;
+        fireLevel = Math.max(10, fireLevel-3);
+        showFact({emoji:this.emoji, name:this.name, fact:this.fact});
+        spawnRescue(this.x, this.y);
+        this.done = true;
+        return;
+      }
+    } else {
+      // Wander
+      if(Math.random()<.02) this.vx = (Math.random()-.5)*2;
+      if(Math.random()<.02) this.vy = (Math.random()-.5)*2;
+      this.vx *= 0.95; this.vy *= 0.95;
+    }
+
+    this.x += this.vx; this.y += this.vy;
+    this.x = Math.max(20, Math.min(W-20, this.x));
+    this.y = Math.max(50, Math.min(safeZoneY()+20, this.y));
+  }
+
+  draw(){
+    ctx.save();
+    ctx.translate(this.x, this.y + Math.sin(this.bob)*3);
+
+    // Glow ring when scared
+    if(this.scared){
+      const gr = ctx.createRadialGradient(0,0,0,0,0,30+this.pulse*20);
+      gr.addColorStop(0,'rgba(249,115,22,0.3)'); gr.addColorStop(1,'rgba(249,115,22,0)');
+      ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(0,0,40,0,Math.PI*2); ctx.fill();
+    }
+
+    // Shadow
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(0,this.size/2+4,14,5,0,0,Math.PI*2); ctx.fill();
+
+    // Emoji
+    ctx.font=`${this.size}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(this.emoji, 0, 0);
+
+    // Click hint pulse ring
+    if(!this.scared){
+      ctx.strokeStyle=`rgba(255,255,255,${0.2+Math.sin(this.bob)*0.15})`;
+      ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  hitTest(cx,cy){
+    return Math.sqrt((cx-this.x)**2+(cy-this.y)**2) < 30;
+  }
+}
+
+// ── Spawn particles on rescue ──────────────────────────────────
+function spawnRescue(x,y){
+  const cols=['#4ade80','#86efac','#fff','#f59e0b'];
+  for(let i=0;i<18;i++) rescueParticles.push({
+    x,y, vx:(Math.random()-.5)*9, vy:(Math.random()-1)*9,
+    r:3+Math.random()*4, life:1,
+    col:cols[Math.floor(Math.random()*cols.length)]
+  });
+}
+
+// ── Fire particles ─────────────────────────────────────────────
+function spawnFire(x,y){
+  fireParticles.push({
+    x:x+(Math.random()-.5)*20, y,
+    vx:(Math.random()-.5)*2,
+    vy:-(1+Math.random()*3),
+    r:4+Math.random()*8,
+    life:1,
+    col:`hsl(${20+Math.random()*30},100%,${50+Math.random()*20}%)`
+  });
+}
+
+// ── Score save ─────────────────────────────────────────────────
+async function saveScore(){
+  const email=localStorage.getItem('userEmail');
+  if(email && score>0){
+    try{
+      await fetch('/api/users/addPoints',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email, points_to_add:score*15, game_name:'Wildlife Rescue'})
+      });
+    }catch(e){}
+  }
+}
+
+// ── End game ────────────────────────────────────────────────────
+async function endGame(won){
+  active=false;
+  clearInterval(timerInterval);
+  await saveScore();
+  const ov=document.getElementById('overlay');
+  ov.style.display='flex'; ov.style.opacity='1';
+  document.getElementById('oTitle').innerText = won ? '🏆 FOREST SAVED!' : '🔥 FIRE WINS...';
+  document.getElementById('oSub').innerHTML = won
+    ? `You are a true Wildlife Guardian!<br><br>Animals Rescued: <b style="color:#4ade80;font-size:1.9rem;">${score}</b><br><small style="opacity:.6">Every animal saved helps balance our ecosystem 🌿</small>`
+    : `The wildfire was too strong this time.<br><br>Animals Rescued: <b style="color:#f59e0b;font-size:1.9rem;">${score}</b><br><small style="opacity:.6">Keep fighting for wildlife — every action counts!</small>`;
+
+  const ex=document.getElementById('retBtn');
+  if(!ex){
+    const b=document.createElement('button');
+    b.id='retBtn'; b.className='btn-play';
+    b.innerText=won?'PLAY AGAIN':'TRY AGAIN';
+    b.style.marginTop='14px';
+    b.onclick=()=>{ov.style.opacity='0';setTimeout(()=>{ov.style.display='none';startGame();},400);};
+    document.querySelector('.modal').appendChild(b);
+  }else{ ex.innerText=won?'PLAY AGAIN':'TRY AGAIN'; }
+}
+
+// ── Start ───────────────────────────────────────────────────────
+function startGame(){
+  active=true; score=0; fireLevel=10; timeLeft=60; gameFrame=0;
+  animals=[]; fireParticles=[]; rescueParticles=[];
+  document.getElementById('scoreEl').innerText='0';
+  document.getElementById('timeEl').innerText='60';
+  document.getElementById('fireFill').style.width='10%';
+  const ov=document.getElementById('overlay');
+  ov.style.opacity='0'; setTimeout(()=>ov.style.display='none',500);
+
+  clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    if(!active) return;
+    timeLeft--;
+    document.getElementById('timeEl').innerText=timeLeft;
+    if(timeLeft<=0) endGame(score>=8);
+  },1000);
+
+  requestAnimationFrame(loop);
+}
+
+// ── Draw background ─────────────────────────────────────────────
+function drawBg(){
+  // Sky
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  const fireRatio = fireLevel/100;
+  sky.addColorStop(0, `hsl(${220-fireRatio*120},${40+fireRatio*30}%,${12+fireRatio*5}%)`);
+  sky.addColorStop(1, `hsl(${140-fireRatio*100},${30+fireRatio*20}%,${8+fireRatio*8}%)`);
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+
+  // Stars (fade with fire)
+  stars.forEach(s=>{
+    ctx.globalAlpha=(1-fireRatio*.8)*.5;
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // Trees
+  trees.forEach(t=>{
+    const burnPct = Math.min(1, fireRatio*1.5);
+    // Trunk
+    ctx.fillStyle=`hsl(25,40%,${15+burnPct*10}%)`;
+    ctx.fillRect(t.x-5, t.y+t.h*0.5, 10, t.h*0.5);
+    // Canopy
+    ctx.fillStyle=`hsl(${130-burnPct*100},${50-burnPct*30}%,${22-burnPct*10}%)`;
+    ctx.beginPath(); ctx.moveTo(t.x, t.y); ctx.lineTo(t.x+t.w/2,t.y+t.h*.6); ctx.lineTo(t.x-t.w/2,t.y+t.h*.6); ctx.closePath(); ctx.fill();
+    // Fire on trees when intense
+    if(fireRatio>0.5 && Math.random()<0.08){
+      spawnFire(t.x + (Math.random()-.5)*t.w*0.4, t.y+t.h*0.4);
+    }
+  });
+
+  // Ground (safe zone)
+  const sz = safeZoneY();
+  const gr = ctx.createLinearGradient(0,sz,0,H);
+  gr.addColorStop(0,'#0c4a6e'); gr.addColorStop(1,'#075985');
+  ctx.fillStyle=gr; ctx.fillRect(0,sz,W,H-sz);
+
+  // Safe zone label
+  ctx.fillStyle='rgba(14,165,233,0.15)';
+  ctx.fillRect(0,sz,W,H-sz);
+  ctx.font='bold 14px Outfit'; ctx.textAlign='center'; ctx.fillStyle='rgba(147,197,253,.7)';
+  ctx.fillText('💧 SAFE RIVER ZONE — Guide animals here!', W/2, sz+22);
+
+  // Wave animation on river
+  for(let i=0;i<5;i++){
+    const wx=(gameFrame*1.5+i*W/5)%W;
+    ctx.strokeStyle='rgba(147,197,253,0.15)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(wx,sz+35); ctx.bezierCurveTo(wx+30,sz+25,wx+60,sz+45,wx+90,sz+35); ctx.stroke();
+  }
+}
+
+// ── Main loop ───────────────────────────────────────────────────
+function loop(){
+  if(!active) return;
+  gameFrame++;
+
+  // Increase fire over time
+  fireLevel = Math.min(100, 10 + (60-timeLeft)*1.2);
+  document.getElementById('fireFill').style.width = fireLevel+'%';
+
+  drawBg();
+
+  // Spawn animals
+  if(gameFrame%90===0 && animals.length<12) animals.push(new Animal());
+
+  // Animals
+  animals = animals.filter(a=>{ a.update(); a.draw(); return !a.done; });
+
+  // Fire particles
+  // Spawn fire along top of forest at fireLevel intensity
+  if(Math.random()<fireLevel/200){
+    const tx=trees[Math.floor(Math.random()*trees.length)];
+    if(tx) spawnFire(tx.x+(Math.random()-.5)*30, tx.y+10);
+  }
+  fireParticles=fireParticles.filter(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy-=0.05; p.life-=0.025; p.r*=0.98;
+    ctx.globalAlpha=p.life*.8;
+    ctx.fillStyle=p.col;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+    return p.life>0;
+  });
+
+  // Rescue particles
+  rescueParticles=rescueParticles.filter(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.15; p.life-=0.02;
+    ctx.globalAlpha=p.life;
+    ctx.fillStyle=p.col;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+    return p.life>0;
+  });
+
+  // Win early if score is great
+  if(score>=12) { endGame(true); return; }
+
+  requestAnimationFrame(loop);
+}
+
+// ── Input ────────────────────────────────────────────────────────
+function handleClick(cx,cy){
+  if(!active) return;
+  animals.forEach(a=>{
+    if(!a.scared && a.hitTest(cx,cy)){
+      a.scared=true; a.pulse=1;
+    }
+  });
+}
+
+canvas.addEventListener('click', e=>handleClick(e.clientX,e.clientY));
+canvas.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  Array.from(e.touches).forEach(t=>handleClick(t.clientX,t.clientY));
+},{passive:false});
+</script>
+</body>
+</html>

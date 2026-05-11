@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Hydro Grid Advanced | EcoQuest</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --water: #00b4d8;
+      --leak: #f43f5e;
+      --bg: #0f172a;
+      --glass: rgba(255, 255, 255, 0.05);
+      --accent: #affc41;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: #fff;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    .hud {
+      position: fixed;
+      top: 30px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 40px;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .hud-panel {
+      background: var(--glass);
+      backdrop-filter: blur(25px);
+      padding: 15px 30px;
+      border-radius: 25px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+    }
+
+    .reserve-meter {
+      width: 250px;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    #reserve-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--leak), var(--water));
+      transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 5, 20, 0.9);
+      backdrop-filter: blur(30px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal {
+      background: var(--glass);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 60px;
+      border-radius: 50px;
+      text-align: center;
+      max-width: 500px;
+    }
+
+    .action-btn {
+      background: var(--water);
+      color: #fff;
+      padding: 22px 60px;
+      border-radius: 100px;
+      font-size: 1.5rem;
+      font-weight: 900;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 30px;
+      box-shadow: 0 10px 40px rgba(0, 180, 216, 0.3);
+    }
+
+    .action-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 50px rgba(0, 180, 216, 0.5);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="hud">
+    <div class="hud-panel">
+      <div style="font-size: 0.7rem; font-weight: 900; letter-spacing: 2px; color: var(--water);">RESERVOIR</div>
+      <div class="reserve-meter">
+        <div id="reserve-fill"></div>
+      </div>
+    </div>
+    <div class="hud-panel">
+      <div style="font-size: 0.7rem; font-weight: 900; letter-spacing: 2px; color: var(--accent);">SAVED</div>
+      <div id="score" style="font-size: 2.2rem; font-weight: 900;">0000</div>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="overlay" class="overlay">
+    <div class="modal">
+      <h1 style="font-size: 3.5rem; font-weight: 900; letter-spacing: -3px; margin-bottom: 20px;">HYDRO GRID</h1>
+      <p style="opacity: 0.7; font-size: 1.2rem; line-height: 1.6;">The metropolitan water network is failing. Critical
+        leaks are draining our reserves. Tap leak points to seal them and preserve life-sustaining resources.</p>
+      <button class="action-btn" onclick="initGame()">RESTORE FLOW</button>
+      <button class="action-btn"
+        style="background:transparent; color:#fff; border:1px solid #333; font-size:1rem; margin-top:10px"
+        onclick="location.href='../games.html'">ABORT</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const scoreEl = document.getElementById('score');
+    const reserveFill = document.getElementById('reserve-fill');
+
+    let w, h;
+    let active = false;
+    let score = 0;
+    let reservoir = 100;
+    let time = 0;
+    let nodes = [];
+    let pipes = [];
+    let leaks = [];
+    let particles = [];
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      setupGrid();
+    }
+
+    function setupGrid() {
+      nodes = []; pipes = [];
+      const rows = 4; const cols = 6;
+      const xSpace = w / (cols + 1);
+      const ySpace = h / (rows + 1);
+      for (let r = 1; r <= rows; r++) {
+        for (let c = 1; c <= cols; c++) {
+          nodes.push({ x: c * xSpace, y: r * ySpace, r: 15 });
+        }
+      }
+      for (let i = 0; i < nodes.length; i++) {
+        const n1 = nodes[i];
+        const n2 = nodes[i + 1];
+        if (n2 && (i + 1) % cols !== 0) pipes.push({ n1, n2 });
+        const n3 = nodes[i + cols];
+        if (n3) pipes.push({ n1, n2: n3 });
+      }
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    function initGame() {
+      active = true;
+      score = 0;
+      reservoir = 100;
+      leaks = [];
+      particles = [];
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.style.visibility = 'hidden', 500);
+      updateScore();
+      requestAnimationFrame(gameLoop);
+    }
+
+    async function savePoints() {
+      const email = localStorage.getItem("userEmail");
+      if (email && typeof score !== 'undefined' && score > 0) {
+        console.log("Saving score:", score);
+        try {
+          const res = await fetch("/api/users/addPoints", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email, points_to_add: score, game_name: "Hydro Grid" })
+          });
+          const data = await res.json();
+          console.log("Score saved successfully:", data);
+        } catch (e) {
+          console.error("Failed to save score:", e);
+        }
+      }
+    }
+
+    async function gameOver() {
+      active = false;
+      await savePoints();
+
+      overlay.style.visibility = 'visible';
+      overlay.style.opacity = '1';
+      document.querySelector('#overlay h1').innerText = "GRID DESICCATED";
+      document.querySelector('#overlay p').innerHTML = `All water reserves have been depleted due to infrastructure failure.<br><br>Net Savings: <span style="font-size:2.8rem; color:var(--water); font-weight:900;">${score}L</span>`;
+      document.querySelector('.action-btn').innerText = "REINITIALIZE";
+
+      const existingRetBtn = document.getElementById('retBtnWater');
+      if (existingRetBtn) existingRetBtn.remove();
+      const retBtn = document.createElement('button');
+      retBtn.id = 'retBtnWater';
+      retBtn.className = 'action-btn';
+      retBtn.style.background = 'transparent';
+      retBtn.style.border = '1px solid rgba(255,255,255,0.2)';
+      retBtn.style.marginTop = '10px';
+      retBtn.innerText = 'RETURN TO DASHBOARD';
+      retBtn.onclick = () => { location.href = '../games.html'; };
+      document.querySelector('.modal').appendChild(retBtn);
+    }
+
+    function gameLoop() {
+      if (!active) return;
+      time++;
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, h);
+
+      pipes.forEach(p => {
+        ctx.strokeStyle = `rgba(0, 180, 216, ${0.1 + Math.sin(time * 0.05) * 0.05})`;
+        ctx.lineWidth = 12;
+        ctx.beginPath(); ctx.moveTo(p.n1.x, p.n1.y); ctx.lineTo(p.n2.x, p.n2.y); ctx.stroke();
+        const flowT = (time * 0.05) % 1;
+        const fx = p.n1.x + (p.n2.x - p.n1.x) * flowT;
+        const fy = p.n1.y + (p.n2.y - p.n1.y) * flowT;
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.beginPath(); ctx.arc(fx, fy, 4, 0, Math.PI * 2); ctx.fill();
+      });
+
+      nodes.forEach(n => {
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      });
+
+      if (time % Math.max(30, 80 - Math.floor(score / 500)) === 0) {
+        const p = pipes[Math.floor(Math.random() * pipes.length)];
+        const t = Math.random();
+        leaks.push({
+          x: p.n1.x + (p.n2.x - p.n1.x) * t,
+          y: p.n1.y + (p.n2.y - p.n1.y) * t,
+          size: 0, maxSize: 40 + Math.random() * 40, active: true
+        });
+      }
+
+      leaks = leaks.filter(l => {
+        if (!l.active) return false;
+        l.size += (l.maxSize - l.size) * 0.05;
+        reservoir -= 0.02 + (l.size / 1000);
+        ctx.shadowBlur = 20; ctx.shadowColor = varColor('--water');
+        ctx.fillStyle = varColor('--water');
+        ctx.beginPath(); ctx.arc(l.x, l.y, l.size / 4, 0, Math.PI * 2); ctx.fill();
+        if (Math.random() > 0.5) createParticles(l.x, l.y, varColor('--water'));
+        ctx.shadowBlur = 0;
+        return true;
+      });
+
+      particles = particles.filter(p => {
+        p.x += p.vx; p.y += p.vy; p.vy += 0.2;
+        p.life -= 0.03;
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.col;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        return p.life > 0;
+      });
+
+      reserveFill.style.width = reservoir + '%';
+      if (reservoir <= 0) gameOver();
+      else requestAnimationFrame(gameLoop);
+    }
+
+    canvas.onclick = (e) => {
+      if (!active) return;
+      leaks.forEach(l => {
+        const d = Math.sqrt(Math.pow(l.x - e.clientX, 2) + Math.pow(l.y - e.clientY, 2));
+        if (d < 50) {
+          l.active = false;
+          score += 100;
+          reservoir = Math.min(100, reservoir + 2);
+          updateScore();
+          for (let i = 0; i < 10; i++) createParticles(l.x, l.y, varColor('--accent'));
+        }
+      });
+    };
+
+    function createParticles(x, y, col) {
+      particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 8,
+        vy: (Math.random() - 1) * 12,
+        size: 2 + Math.random() * 3,
+        life: 1,
+        col
+      });
+    }
+
+    function updateScore() { scoreEl.innerText = score.toString().padStart(4, '0'); }
+    function varColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  </script>
+</body>
+
+</html>
+

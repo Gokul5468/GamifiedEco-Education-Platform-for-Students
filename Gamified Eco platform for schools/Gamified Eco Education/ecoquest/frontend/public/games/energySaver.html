@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Energy Guardian Advanced | EcoQuest</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0f172a;
+      --accent: #facc15;
+      --eco: #4ade80;
+      --danger: #f43f5e;
+      --glass: rgba(255, 255, 255, 0.05);
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+      background: var(--primary);
+      color: #fff;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    #game-world {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+      transition: 2s background;
+    }
+
+    .night-mode {
+      background: radial-gradient(circle at center, #020617 0%, #000 100%) !important;
+    }
+
+    .house-container {
+      position: relative;
+      width: 800px;
+      height: 500px;
+      transform-style: preserve-3d;
+      perspective: 2000px;
+    }
+
+    .house-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.5));
+    }
+
+    .appliance {
+      position: absolute;
+      cursor: pointer;
+      transition: 0.3s;
+      filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.5));
+    }
+
+    .appliance:hover {
+      transform: scale(1.1);
+    }
+
+    .on-state {
+      filter: drop-shadow(0 0 20px var(--danger)) brightness(1.5);
+      animation: pulse-danger 1s infinite alternate;
+    }
+
+    @keyframes pulse-danger {
+      from { filter: drop-shadow(0 0 10px var(--danger)); }
+      to { filter: drop-shadow(0 0 25px var(--danger)); }
+    }
+
+    .hud {
+      position: fixed;
+      top: 30px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 40px;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .hud-card {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      padding: 15px 30px;
+      border-radius: 25px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+    }
+
+    .meter-container {
+      width: 300px;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50px;
+      margin-top: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    #load-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--eco), var(--accent), var(--danger));
+      transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(25px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal {
+      background: var(--glass);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 50px;
+      border-radius: 40px;
+      text-align: center;
+      max-width: 450px;
+    }
+
+    .mega-btn {
+      background: var(--eco);
+      color: #000;
+      padding: 20px 50px;
+      border-radius: 100px;
+      font-size: 1.4rem;
+      font-weight: 900;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 30px;
+      box-shadow: 0 10px 30px rgba(74, 222, 128, 0.3);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="hud">
+    <div class="hud-card">
+      <div style="font-size: 0.7rem; letter-spacing: 2px; color: var(--accent); font-weight: 900;">GRID LOAD</div>
+      <div class="meter-container">
+        <div id="load-fill"></div>
+      </div>
+    </div>
+    <div class="hud-card">
+      <div style="font-size: 0.7rem; letter-spacing: 2px; color: var(--eco); font-weight: 900;">WATTS SAVED</div>
+      <div id="score" style="font-size: 2.2rem; font-weight: 900;">0000</div>
+    </div>
+  </div>
+
+  <div id="game-world">
+    <div class="house-container">
+      <svg class="house-svg" viewBox="0 0 800 500">
+        <path d="M400 50 L750 225 L400 400 L50 225 Z" fill="#1e293b" stroke="#334155" stroke-width="4" />
+        <path d="M400 400 L750 225 L750 350 L400 475 Z" fill="#0f172a" stroke="#334155" stroke-width="2" />
+        <path d="M50 225 L400 400 L400 475 L50 300 Z" fill="#030712" stroke="#334155" stroke-width="2" />
+        <path d="M400 400 L400 225" stroke="#334155" stroke-dasharray="8 4" />
+        <path d="M225 137 L225 312" stroke="#334155" stroke-dasharray="8 4" />
+      </svg>
+
+      <div class="appliance" id="tv" style="top: 220px; left: 180px;" onclick="toggleAppliance('tv')">
+        <svg width="60" height="45" viewBox="0 0 60 45">
+          <rect width="60" height="40" rx="5" fill="#333" />
+          <rect x="5" y="5" width="50" height="30" fill="#000" />
+        </svg>
+      </div>
+      <div class="appliance" id="ac" style="top: 100px; left: 450px;" onclick="toggleAppliance('ac')">
+        <svg width="80" height="30" viewBox="0 0 80 30">
+          <rect width="80" height="25" rx="3" fill="#eee" />
+          <path d="M10 20 H70" stroke="#bbb" />
+        </svg>
+      </div>
+      <div class="appliance" id="fridge" style="top: 250px; left: 550px;" onclick="toggleAppliance('fridge')">
+        <svg width="50" height="100" viewBox="0 0 50 100">
+          <rect width="50" height="100" rx="5" fill="#ccc" />
+          <path d="M10 40 H40" stroke="#999" />
+        </svg>
+      </div>
+      <div class="appliance" id="lights" style="top: 50px; left: 200px;" onclick="toggleAppliance('lights')">
+        <svg width="40" height="40" viewBox="0 0 40 40">
+          <circle cx="20" cy="15" r="10" fill="#facc15" />
+          <rect x="18" y="25" width="4" height="10" fill="#999" />
+        </svg>
+      </div>
+      <div class="appliance" id="heater" style="top: 320px; left: 350px;" onclick="toggleAppliance('heater')">
+        <svg width="50" height="50" viewBox="0 0 50 50">
+          <rect width="50" height="50" rx="4" fill="#555" />
+          <path d="M10 10 V40 M20 10 V40 M30 10 V40 M40 10 V40" stroke="#f43f5e" stroke-width="2" />
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay" class="overlay">
+    <div class="modal">
+      <h1 style="font-size: 2.5rem; font-weight: 900; margin-bottom: 10px;">GRID GUARDIAN</h1>
+      <p style="opacity: 0.7; line-height: 1.6;">The neighborhood power grid is unstable. Appliances are turning on
+        automatically! Tap them to power down and prevent a total blackout.</p>
+      <button class="mega-btn" onclick="initGame()">RESTORE BALANCE</button>
+      <button class="mega-btn"
+        style="background:transparent; color:#fff; border:1px solid #333; font-size:1rem; margin-top:10px"
+        onclick="location.href='../games.html'">BACK</button>
+    </div>
+  </div>
+
+  <script>
+    const stats = { tv: 15, ac: 35, fridge: 20, lights: 10, heater: 40 };
+    const states = { tv: false, ac: false, fridge: false, lights: false, heater: false };
+    let score = 0;
+    let active = false;
+    let load = 0;
+    let time = 0;
+
+    function initGame() {
+      active = true;
+      score = 0;
+      load = 0;
+      time = 0;
+      Object.keys(states).forEach(k => { states[k] = false; updateAppVisual(k); });
+      document.getElementById('overlay').style.display = 'none';
+      document.getElementById('score').innerText = '0000';
+      requestAnimationFrame(gameLoop);
+    }
+
+    async function savePoints() {
+      const email = localStorage.getItem("userEmail");
+      if (email && typeof score !== 'undefined' && score > 0) {
+        console.log("Saving score:", score);
+        try {
+          const res = await fetch("/api/users/addPoints", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email, points_to_add: score, game_name: "Grid Guardian" })
+          });
+          const data = await res.json();
+          console.log("Score saved successfully:", data);
+        } catch (e) {
+          console.error("Failed to save score:", e);
+        }
+      }
+    }
+
+    async function gameOver() {
+      active = false;
+      await savePoints();
+
+      document.getElementById('overlay').style.display = 'flex';
+      document.querySelector('#overlay h1').innerText = "GRID COLLAPSED";
+      document.querySelector('#overlay p').innerHTML = `The local grid has suffered a critical failure due to overconsumption.<br><br>Energy Saved: <span style="font-size:2.5rem; color:var(--eco); font-weight:900;">${score}W</span>`;
+      document.querySelector('.mega-btn').innerText = "RESTART GRID";
+
+      const existingRetBtn = document.getElementById('retBtn');
+      if (existingRetBtn) existingRetBtn.remove();
+      const retBtn = document.createElement('button');
+      retBtn.id = 'retBtn';
+      retBtn.className = 'mega-btn';
+      retBtn.style.background = 'transparent';
+      retBtn.style.border = '1px solid rgba(255,255,255,0.2)';
+      retBtn.style.marginTop = '10px';
+      retBtn.innerText = 'RETURN TO DASHBOARD';
+      retBtn.onclick = () => { location.href = '../games.html'; };
+      document.querySelector('.modal').appendChild(retBtn);
+    }
+
+    function toggleAppliance(id) {
+      if (!active) return;
+      states[id] = !states[id];
+      updateAppVisual(id);
+      if (!states[id]) {
+        score += 50;
+        document.getElementById('score').innerText = score.toString().padStart(4, '0');
+      }
+    }
+
+    function updateAppVisual(id) {
+      const el = document.getElementById(id);
+      if (states[id]) el.classList.add('on-state');
+      else el.classList.remove('on-state');
+    }
+
+    function gameLoop() {
+      if (!active) return;
+      time++;
+
+      const chance = 0.01 + (score / 50000);
+      if (Math.random() < chance) {
+        const keys = Object.keys(states);
+        const randK = keys[Math.floor(Math.random() * keys.length)];
+        if (!states[randK]) {
+          states[randK] = true;
+          updateAppVisual(randK);
+        }
+      }
+
+      let currentLoad = 0;
+      Object.keys(states).forEach(k => { if (states[k]) currentLoad += stats[k]; });
+      load += (currentLoad - load) * 0.1;
+
+      document.getElementById('load-fill').style.width = load + '%';
+
+      if (time % 1000 < 500) document.getElementById('game-world').classList.remove('night-mode');
+      else document.getElementById('game-world').classList.add('night-mode');
+
+      if (load > 99.5) gameOver();
+      else requestAnimationFrame(gameLoop);
+    }
+  </script>
+</body>
+
+</html>
+

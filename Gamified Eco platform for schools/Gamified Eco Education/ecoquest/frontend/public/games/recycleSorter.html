@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Master Sorter Advanced | EcoQuest</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #3498db;
+      --plastic: #e67e22;
+      --organic: #27ae60;
+      --glass: #9b59b6;
+      --metal: #7f8c8d;
+      --accent: #affc41;
+      --bg: #0f172a;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: #fff;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    .hud {
+      position: fixed;
+      top: 25px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 40px;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .stat-box {
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(15px);
+      padding: 12px 30px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent);
+      font-weight: 800;
+    }
+
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 900;
+      line-height: 1;
+      margin-top: 4px;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 5, 20, 0.9);
+      backdrop-filter: blur(20px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: 0.5s;
+    }
+
+    .modal {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 50px;
+      border-radius: 40px;
+      max-width: 450px;
+      width: 90%;
+      text-align: center;
+    }
+
+    .hero-title {
+      font-size: 3rem;
+      font-weight: 900;
+      background: linear-gradient(to bottom, #fff, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 20px;
+    }
+
+    .btn-launch {
+      background: var(--accent);
+      color: #000;
+      padding: 20px;
+      border-radius: 100px;
+      font-size: 1.4rem;
+      font-weight: 900;
+      width: 100%;
+      border: none;
+      cursor: pointer;
+      margin-top: 30px;
+      box-shadow: 0 10px 30px rgba(175, 252, 65, 0.3);
+    }
+
+    .btn-abort {
+      background: transparent;
+      color: #fff;
+      margin-top: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 12px;
+      border-radius: 100px;
+      width: 100%;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="hud">
+    <div class="stat-box">
+      <div class="stat-label">Sort Accuracy</div>
+      <div class="stat-value" id="accuracy">100%</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Eco Score</div>
+      <div class="stat-value" id="score">0000</div>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="overlay" class="overlay">
+    <div class="modal">
+      <div class="hero-title">MASTER SORTER</div>
+      <p style="opacity:0.7; line-height:1.6;">Industrial waste is surging on the conveyor. Drag and drop the materials
+        into their respective biomes before they contaminate the facility.</p>
+      <button class="btn-launch" onclick="initGame()">COMMENCE SORTING</button>
+      <button class="btn-abort" onclick="location.href='../games.html'">ABORT MISSION</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const accEl = document.getElementById('accuracy');
+    const overlay = document.getElementById('overlay');
+
+    let w, h;
+    let active = false;
+    let score = 0;
+    let attempts = 0;
+    let hits = 0;
+    let items = [];
+    let particles = [];
+    let time = 0;
+    let draggingItem = null;
+
+    const TYPES = [
+      { id: 'paper', color: '#3498db', icon: '📄', label: 'PAPER' },
+      { id: 'plastic', color: '#e67e22', icon: '🧴', label: 'PLASTIC' },
+      { id: 'organic', color: '#27ae60', icon: '🍎', label: 'ORGANIC' }
+    ];
+
+    let bins = [];
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      bins = TYPES.map((t, i) => ({
+        ...t,
+        x: (w / TYPES.length) * i + (w / TYPES.length / 2),
+        y: h - 150,
+        r: 80,
+        pulse: 0
+      }));
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    class Item {
+      constructor() {
+        this.data = TYPES[Math.floor(Math.random() * TYPES.length)];
+        this.x = -100;
+        this.y = h / 2 - 50;
+        this.w = 80;
+        this.h = 80;
+        this.speed = 2 + (score / 1000);
+        this.isDragging = false;
+        this.targetX = this.x;
+        this.targetY = this.y;
+        this.isDone = false;
+      }
+      update() {
+        if (this.isDragging) {
+          this.x += (this.targetX - this.x) * 0.3;
+          this.y += (this.targetY - this.y) * 0.3;
+        } else {
+          this.x += this.speed;
+        }
+        if (this.x > w + 100) {
+          this.isDone = true;
+          if (!this.isDragging) { attempts++; updateStats(); }
+        }
+      }
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        if (this.isDragging) ctx.scale(1.2, 1.2);
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.roundRect(-this.w / 2, -this.h / 2, this.w, this.h, 15);
+        ctx.fill();
+        ctx.fillStyle = this.data.color;
+        ctx.font = '900 40px Outfit';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.data.icon, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    function initGame() {
+      active = true;
+      score = 0;
+      attempts = 0;
+      hits = 0;
+      items = [];
+      particles = [];
+      scoreEl.innerText = '0000';
+      accEl.innerText = '100%';
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.style.visibility = 'hidden', 500);
+      requestAnimationFrame(gameLoop);
+    }
+
+    async function savePoints() {
+      const email = localStorage.getItem("userEmail");
+      if (email && typeof score !== 'undefined' && score > 0) {
+        console.log("Saving score:", score);
+        try {
+          const res = await fetch("/api/users/addPoints", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              email: email, 
+              points_to_add: score,
+              game_name: "Master Sorter"
+            })
+          });
+          const data = await res.json();
+          console.log("Score saved successfully:", data);
+        } catch (e) {
+          console.error("Failed to save score:", e);
+        }
+      }
+    }
+
+    async function gameWin() {
+      active = false;
+      await savePoints();
+      overlay.style.visibility = 'visible';
+      overlay.style.opacity = '1';
+      document.querySelector('.hero-title').innerText = "MISSION SUCCESS";
+      document.querySelector('.modal p').innerHTML = `The facility is now optimized. Sorting efficiency peaked.<br><br>Eco-Score Collected: <span style="font-size:2.8rem; color:var(--accent); font-weight:900;">${score}</span>`;
+      document.querySelector('.btn-launch').innerText = "PLAY AGAIN";
+      
+      if (!document.getElementById('dash-btn')) {
+        const btn = document.createElement('button');
+        btn.id = 'dash-btn';
+        btn.className = 'btn-launch';
+        btn.style.marginTop = '15px';
+        btn.style.background = 'transparent';
+        btn.style.color = '#fff';
+        btn.style.border = '1px solid #333';
+        btn.innerText = "RETURN TO DASHBOARD";
+        btn.onclick = () => location.href = '../student.html';
+        document.querySelector('.modal').appendChild(btn);
+      }
+    }
+
+    async function gameOver() {
+      active = false;
+      await savePoints();
+      overlay.style.visibility = 'visible';
+      overlay.style.opacity = '1';
+      document.querySelector('.hero-title').innerText = "SORT FAILED";
+      document.querySelector('.modal p').innerHTML = `Facility integrity compromised. Sorting accuracy dropped below safety levels.<br><br>Eco-Score Collected: <span style="font-size:2.8rem; color:var(--accent); font-weight:900;">${score}</span>`;
+      document.querySelector('.btn-launch').innerText = "RETRY SORT";
+      
+      if (!document.getElementById('dash-btn')) {
+        const btn = document.createElement('button');
+        btn.id = 'dash-btn';
+        btn.className = 'btn-launch';
+        btn.style.marginTop = '15px';
+        btn.style.background = 'transparent';
+        btn.style.color = '#fff';
+        btn.style.border = '1px solid #333';
+        btn.innerText = "RETURN TO DASHBOARD";
+        btn.onclick = () => location.href = '../student.html';
+        document.querySelector('.modal').appendChild(btn);
+      }
+    }
+
+    function updateStats() {
+      const acc = attempts === 0 ? 100 : Math.round((hits / attempts) * 100);
+      accEl.innerText = acc + '%';
+      if (acc < 30 && attempts > 10) gameOver();
+    }
+
+    function gameLoop() {
+      if (!active) return;
+      time++;
+      ctx.fillStyle = getVar('--bg');
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, h / 2 - 70, w, 140);
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = 10;
+      ctx.strokeRect(-10, h / 2 - 70, w + 20, 140);
+      ctx.fillStyle = '#0f172a';
+      for (let i = 0; i < w; i += 100) {
+        const offset = (time * 2) % 100;
+        ctx.fillRect(i + offset, h / 2 - 65, 20, 130);
+      }
+      bins.forEach(bin => {
+        bin.pulse *= 0.9;
+        ctx.save();
+        ctx.translate(bin.x, bin.y);
+        ctx.scale(1 + bin.pulse, 1 + bin.pulse);
+        ctx.fillStyle = bin.color;
+        ctx.beginPath();
+        ctx.roundRect(-bin.r, -bin.r, bin.r * 2, bin.r * 2, 25);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(-bin.r, -bin.r, bin.r * 2, 30);
+        ctx.fillStyle = '#fff';
+        ctx.font = '800 14px Outfit';
+        ctx.textAlign = 'center';
+        ctx.fillText(bin.label, 0, bin.r + 25);
+        ctx.font = '50px Outfit';
+        ctx.fillText(bin.icon, 0, 15);
+        ctx.restore();
+      });
+      if (time % Math.max(40, 90 - Math.floor(score / 500)) === 0) items.push(new Item());
+      items = items.filter(item => {
+        item.update();
+        item.draw();
+        return !item.isDone;
+      });
+      particles = particles.filter(p => {
+        p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.col;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        return p.life > 0;
+      });
+      if (score >= 1500) gameWin();
+      requestAnimationFrame(gameLoop);
+    }
+
+    const getEv = e => e.touches ? e.touches[0] : e;
+    function startDrag(e) {
+      const ev = getEv(e);
+      items.forEach(item => {
+        const dx = ev.clientX - item.x;
+        const dy = ev.clientY - item.y;
+        if (Math.sqrt(dx * dx + dy * dy) < 60) {
+          draggingItem = item;
+          item.isDragging = true;
+        }
+      });
+    }
+    function doDrag(e) {
+      if (!draggingItem) return;
+      const ev = getEv(e);
+      draggingItem.targetX = ev.clientX;
+      draggingItem.targetY = ev.clientY;
+    }
+    function endDrag(e) {
+      if (!draggingItem) return;
+      draggingItem.isDragging = false;
+      bins.forEach(bin => {
+        const dx = draggingItem.x - bin.x;
+        const dy = draggingItem.y - bin.y;
+        if (Math.sqrt(dx * dx + dy * dy) < bin.r + 50) {
+          attempts++;
+          if (draggingItem.data.id === bin.id) {
+            hits++;
+            score += 100;
+            scoreEl.innerText = score.toString().padStart(4, '0');
+            bin.pulse = 0.2;
+            createParticles(bin.x, bin.y, bin.color);
+          } else {
+            score = Math.max(0, score - 50);
+            scoreEl.innerText = score.toString().padStart(4, '0');
+            createParticles(bin.x, bin.y, '#f43f5e');
+          }
+          draggingItem.isDone = true;
+        }
+      });
+      if (!draggingItem.isDone) {
+        draggingItem.targetX = draggingItem.x;
+        draggingItem.targetY = h / 2 - 50;
+      }
+      draggingItem = null;
+      updateStats();
+    }
+    function createParticles(x, y, col) {
+      for (let i = 0; i < 15; i++) {
+        particles.push({
+          x, y,
+          vx: (Math.random() - 0.5) * 15,
+          vy: (Math.random() - 0.5) * 15,
+          size: 4 + Math.random() * 5,
+          life: 1,
+          col
+        });
+      }
+    }
+    function getVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+    window.addEventListener('mousedown', startDrag);
+    window.addEventListener('mousemove', doDrag);
+    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('touchstart', startDrag, { passive: false });
+    window.addEventListener('touchmove', doDrag, { passive: false });
+    window.addEventListener('touchend', endDrag);
+  </script>
+</body>
+</html>
+

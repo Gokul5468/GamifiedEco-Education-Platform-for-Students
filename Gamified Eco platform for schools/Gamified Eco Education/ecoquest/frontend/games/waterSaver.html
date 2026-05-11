@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Water Saver Challenge</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body{margin:0;font-family:"Poppins",sans-serif;background:linear-gradient(135deg,#0077be,#00a1ff);color:#fff;text-align:center}
+    h1{margin:18px 0}
+    #score{font-size:20px}
+    #bucket-area{position:relative;height:320px;width:260px;margin:16px auto}
+    #bucket{width:100%;height:220px;border-radius:0 0 40px 40px;background:rgba(255,255,255,0.12);border:4px solid rgba(255,255,255,0.18);position:relative;overflow:hidden}
+    #water{position:absolute;bottom:0;width:100%;height:0;background:rgba(0,200,255,0.7);transition:height 0.18s}
+    #tap{width:120px;display:block;margin:8px auto;cursor:pointer}
+    .controls{display:flex;gap:8px;justify-content:center;margin-top:12px}
+    .btn{padding:10px 14px;border-radius:10px;border:none;background:#ffe600;color:#064017;font-weight:700;cursor:pointer}
+  </style>
+</head>
+<body>
+  <h1>🚰 Water Saver Challenge</h1>
+  <div id="score">Score: 0  •  High: <span id="high">0</span></div>
+
+  <div id="bucket-area">
+    <img id="tap" src="https://i.imgur.com/LvXyFzB.png" alt="tap" onclick="stopWater()" />
+    <div id="bucket">
+      <div id="water"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" onclick="startGame()">Restart</button>
+    <button class="btn" onclick="location.href='games.html'">Back</button>
+  </div>
+
+<script>
+let waterLevel=0, score=0, interval=null;
+const waterEl=document.getElementById('water'), scoreEl=document.getElementById('score'), highEl=document.getElementById('high');
+
+function loadHigh(){ highEl.innerText = localStorage.getItem('water_high')||0 }
+loadHigh();
+
+function startGame(){
+  clearInterval(interval);
+  waterLevel=0; score=0; waterEl.style.height='0%'; scoreEl.innerText=`Score: ${score}  •  High: ${localStorage.getItem('water_high')||0}`;
+  interval = setInterval(()=>{
+    waterLevel += 5;
+    waterEl.style.height = waterLevel + '%';
+    if(waterLevel >= 100){ clearInterval(interval); gameOver(); }
+  },700);
+}
+
+function stopWater(){
+  if(!interval) return;
+  if(waterLevel >= 100) return;
+  score++;
+  waterLevel = Math.max(0, waterLevel - 20);
+  waterEl.style.height = waterLevel + '%';
+  scoreEl.innerText=`Score: ${score}  •  High: ${localStorage.getItem('water_high')||0}`;
+}
+
+function gameOver(){
+  alert('💧 Bucket overflowed! Score: ' + score);
+  const prev = Number(localStorage.getItem('water_high')||0);
+  if(score > prev){ localStorage.setItem('water_high', score); loadHigh(); alert('New high score!'); }
+}
+
+startGame();
+</script>
+</body>
+</html>

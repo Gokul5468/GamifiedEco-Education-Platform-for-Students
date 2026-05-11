@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+    <meta charset="utf-8" />
+    <title>Ocean Cleanup Advanced | EcoQuest</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --surface: #00b4d8;
+            --deep: #023e8a;
+            --accent: #affc41;
+            --danger: #ff5252;
+            --gold: #f9d423;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            background: var(--deep);
+            overflow: hidden;
+            touch-action: none;
+            color: #fff;
+        }
+
+        canvas {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* 🔘 HUD */
+        .hud {
+            position: fixed;
+            top: 30px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .hud-item {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(15px);
+            padding: 12px 25px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .hud-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent);
+            font-weight: 800;
+            margin-bottom: 2px;
+        }
+
+        .hud-value {
+            font-size: 1.8rem;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        /* 🎬 MENUS */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 5, 20, 0.85);
+            backdrop-filter: blur(20px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: 0.5s;
+        }
+
+        .modal {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 50px;
+            border-radius: 40px;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .title-glow {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            letter-spacing: -2px;
+            background: linear-gradient(to bottom, #fff 0%, var(--surface) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 20px rgba(0, 180, 216, 0.4));
+        }
+
+        .btn-mega {
+            background: var(--accent);
+            color: #000;
+            padding: 20px 50px;
+            border-radius: 100px;
+            font-size: 1.4rem;
+            font-weight: 900;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 15px 40px rgba(175, 252, 65, 0.3);
+            width: 100%;
+            margin-top: 30px;
+        }
+
+        .btn-mega:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 50px rgba(175, 252, 65, 0.5);
+        }
+
+        .btn-exit {
+            background: transparent;
+            color: #fff;
+            margin-top: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px;
+            border-radius: 100px;
+            width: 100%;
+            cursor: pointer;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hud">
+        <div class="hud-item">
+            <div class="hud-label">Ecosystem Health</div>
+            <div class="hud-value" id="health">100%</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Eco-Wealth</div>
+            <div class="hud-value" id="score">0000</div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="overlay" class="overlay">
+        <div class="modal">
+            <div class="title-glow">OCEAN CLEANUP</div>
+            <p style="opacity:0.7; font-size:1.1rem; line-height:1.6;">Command the ECO-Sloop and purge the depths of
+                synthetic toxins. Avoid the native sea-life to maintain structural integrity.</p>
+            <button class="btn-mega" onclick="initGame()">ENGAGE ENGINES</button>
+            <button class="btn-exit" onclick="location.href='../games.html'">ABORT MISSION</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        const healthEl = document.getElementById('health');
+        const scoreEl = document.getElementById('score');
+
+        let width, height;
+        let active = false;
+        let score = 0;
+        let health = 100;
+        let playerX = 0;
+        let targetX = 0;
+        let bubbles = [];
+        let items = [];
+        let particles = [];
+        let time = 0;
+
+        const BUBBLE_COUNT = 40;
+        const SPAWN_RATE = 0.02;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            playerX = targetX = width / 2;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Bubble {
+            constructor() {
+                this.reset();
+                this.y = Math.random() * height;
+            }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = height + 50;
+                this.size = 1 + Math.random() * 8;
+                this.speed = 1 + Math.random() * 2;
+                this.swing = Math.random() * 2;
+                this.swingSpeed = 0.02 + Math.random() * 0.02;
+            }
+            update() {
+                this.y -= this.speed;
+                this.x += Math.sin(time * this.swingSpeed) * this.swing;
+                if (this.y < -50) this.reset();
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.fill();
+            }
+        }
+
+        class Item {
+            constructor(type) {
+                this.type = type;
+                this.x = 50 + Math.random() * (width - 100);
+                this.y = -100;
+                this.speed = 3 + Math.random() * 4 + (score / 1000);
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotSpeed = (Math.random() - 0.5) * 0.1;
+                this.size = type === 'trash' ? 50 : 40;
+                this.active = true;
+            }
+            update() {
+                this.y += this.speed;
+                this.rotation += this.rotSpeed;
+                if (this.y > height + 100) this.active = false;
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                if (this.type === 'trash') {
+                    ctx.fillStyle = '#777';
+                    ctx.fillRect(-15, -25, 30, 50);
+                    ctx.fillStyle = '#999';
+                    ctx.fillRect(-10, -35, 20, 15);
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-15, -25, 30, 50);
+                } else {
+                    ctx.fillStyle = '#ff7f50';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 25, 15, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(25, 0);
+                    ctx.lineTo(40, -15);
+                    ctx.lineTo(40, 15);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(-15, -5, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
+                this.size = 2 + Math.random() * 5;
+                this.life = 1.0;
+                this.color = color;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 0.02;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color.replace(')', `, ${this.life})`).replace('rgb', 'rgba');
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < BUBBLE_COUNT; i++) bubbles.push(new Bubble());
+
+        function initGame() {
+            active = true;
+            score = 0;
+            health = 100;
+            items = [];
+            particles = [];
+            scoreEl.innerText = '0000';
+            healthEl.innerText = '100%';
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.visibility = 'hidden', 500);
+            requestAnimationFrame(gameLoop);
+        }
+
+        async function savePoints() {
+            const email = localStorage.getItem("userEmail");
+            if (email && typeof score !== 'undefined' && score > 0) {
+                console.log("Saving score:", score);
+                try {
+                    const res = await fetch("/api/users/addPoints", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ 
+                            email: email, 
+                            points_to_add: score,
+                            game_name: "Ocean Cleanup"
+                        })
+                    });
+                    const data = await res.json();
+                    console.log("Score saved successfully:", data);
+                } catch (e) {
+                    console.error("Failed to save score:", e);
+                }
+            }
+        }
+
+        async function gameWin() {
+            active = false;
+            await savePoints();
+            overlay.style.visibility = 'visible';
+            overlay.style.opacity = '1';
+            document.querySelector('.title-glow').innerText = "MISSION SUCCESS";
+            document.querySelector('.modal p').innerHTML = `The ocean sector is now stable. Bio-hazards neutralized.<br><br>Eco-Wealth Generated: <span style="font-size:2.5rem; color:var(--accent); font-weight:900;">${score}</span>`;
+            document.querySelector('.btn-mega').innerText = "PLAY AGAIN";
+            
+            if (!document.getElementById('dash-btn')) {
+                const btn = document.createElement('button');
+                btn.id = 'dash-btn';
+                btn.className = 'btn-mega';
+                btn.style.marginTop = '15px';
+                btn.style.background = 'var(--surface)';
+                btn.innerText = "RETURN TO DASHBOARD";
+                btn.onclick = () => location.href = '../student.html';
+                document.querySelector('.modal').appendChild(btn);
+            }
+        }
+
+        async function gameOver() {
+            active = false;
+            await savePoints();
+            overlay.style.visibility = 'visible';
+            overlay.style.opacity = '1';
+            document.querySelector('.title-glow').innerText = "ECO CRISIS";
+            document.querySelector('.modal p').innerHTML = `The ocean has become too toxic. Ecosystem stability compromised.<br><br>Eco-Wealth Generated: <span style="font-size:2.5rem; color:var(--accent); font-weight:900;">${score}</span>`;
+            document.querySelector('.btn-mega').innerText = "RESTART MISSION";
+
+            if (!document.getElementById('dash-btn')) {
+                const btn = document.createElement('button');
+                btn.id = 'dash-btn';
+                btn.className = 'btn-mega';
+                btn.style.marginTop = '15px';
+                btn.style.background = 'var(--surface)';
+                btn.innerText = "RETURN TO DASHBOARD";
+                btn.onclick = () => location.href = '../student.html';
+                document.querySelector('.modal').appendChild(btn);
+            }
+        }
+
+        function gameLoop() {
+            if (!active) return;
+            time++;
+
+            const grad = ctx.createLinearGradient(0, 0, 0, height);
+            grad.addColorStop(0, '#00b4d8');
+            grad.addColorStop(1, '#023e8a');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.moveTo(width / 2 + Math.sin(time * 0.01 + i) * 100, -100);
+                ctx.lineTo(width / 2 + Math.sin(time * 0.01 + i) * 100 - 200, height + 100);
+                ctx.lineTo(width / 2 + Math.sin(time * 0.01 + i) * 100 + 400, height + 100);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            bubbles.forEach(b => { b.update(); b.draw(); });
+            playerX += (targetX - playerX) * 0.1;
+
+            ctx.save();
+            ctx.translate(playerX, height - 150);
+            ctx.rotate(Math.sin(time * 0.05) * 0.03 + (targetX - playerX) * 0.001);
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.moveTo(-60, 0);
+            ctx.lineTo(60, 0);
+            ctx.lineTo(40, 40);
+            ctx.lineTo(-40, 40);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#ddd';
+            ctx.fillRect(-30, -30, 60, 30);
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-20, -25, 40, 15);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(0, -80); ctx.stroke();
+            ctx.fillStyle = getVar('--accent');
+            ctx.beginPath(); ctx.moveTo(0, -80); ctx.lineTo(30, -65); ctx.lineTo(0, -50); ctx.fill();
+            ctx.restore();
+
+            if (Math.random() < SPAWN_RATE + (score / 20000)) {
+                items.push(new Item(Math.random() > 0.4 ? 'trash' : 'fish'));
+            }
+
+            items = items.filter(item => {
+                item.update();
+                item.draw();
+                const dx = item.x - playerX;
+                const dy = item.y - (height - 130);
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 80) {
+                    if (item.type === 'trash') {
+                        score += 50;
+                        scoreEl.innerText = score.toString().padStart(4, '0');
+                        for (let i = 0; i < 8; i++) particles.push(new Particle(item.x, item.y, 'rgb(175, 252, 65)'));
+                    } else {
+                        health -= 20;
+                        healthEl.innerText = health + '%';
+                        for (let i = 0; i < 15; i++) particles.push(new Particle(item.x, item.y, 'rgb(255, 82, 82)'));
+                        if (health <= 0) gameOver();
+                    }
+                    if (score >= 1000) gameWin();
+                    return false;
+                }
+                return item.active;
+            });
+
+            particles = particles.filter(p => {
+                p.update();
+                p.draw();
+                return p.life > 0;
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.addEventListener('mousemove', e => targetX = e.clientX);
+        window.addEventListener('touchmove', e => {
+            e.preventDefault();
+            targetX = e.touches[0].clientX;
+        }, { passive: false });
+
+        function getVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+    </script>
+</body>
+
+</html>
+

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Staff Registration | EcoQuest</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    .role-toggle {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 30px;
+    }
+    .role-btn {
+        flex: 1;
+        padding: 15px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #fff;
+        cursor: pointer;
+        font-weight: 700;
+        transition: 0.3s;
+    }
+    .role-btn.active {
+        background: var(--accent);
+        color: #000;
+        border-color: var(--accent);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <div class="glass-container" style="max-width: 500px; width: 100%;">
+    <div style="text-align:center; margin-bottom: 35px;">
+      <h1 style="font-size: 2.5rem; font-weight: 900; color: #fff; letter-spacing: -1.5px; margin-bottom: 5px;">🎖️ Staff Join</h1>
+      <p style="opacity: 0.7; font-weight: 500;">Register as a Teacher or Administrator.</p>
+    </div>
+
+    <div class="role-toggle">
+        <button id="btn-teacher" class="role-btn active" onclick="setRole('teacher')">Teacher</button>
+        <button id="btn-admin" class="role-btn" onclick="setRole('admin')">Administrator</button>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Full Name</label>
+      <input id="fullName" class="input-field" placeholder="E.g. Prof. Green" />
+    </div>
+
+    <div class="input-group" style="margin-top: 20px;">
+      <label class="input-label">Email Address</label>
+      <input id="email" type="email" class="input-field" placeholder="name@school.edu" />
+    </div>
+
+    <div class="input-group" style="margin-top: 20px;">
+      <label class="input-label">Set Passkey</label>
+      <input id="password" type="password" class="input-field" placeholder="••••••••" />
+    </div>
+
+    <div class="input-group" style="margin-top: 20px;">
+      <label class="input-label">School Integration Code</label>
+      <input id="school_code" class="input-field" placeholder="SC-XXXX" style="text-transform: uppercase;" />
+    </div>
+
+    <div id="teacher-fields">
+        <div class="input-group" style="margin-top: 20px;">
+            <label class="input-label">Primary Subject</label>
+            <input id="subject" class="input-field" placeholder="E.g. Biology, Environmental Science" />
+        </div>
+    </div>
+
+    <button class="btn-premium" style="background: var(--accent); color: #000; margin-top: 40px;" onclick="register()">Complete Registration</button>
+    
+    <p id="msg" style="text-align:center; margin-top: 25px; font-weight: 800; min-height: 20px;"></p>
+
+    <div style="text-align:center; margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 25px;">
+      <a href="login.html" style="color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.95rem;">Already have access? <strong>Log In →</strong></a>
+    </div>
+  </div>
+
+  <script>
+    let currentRole = 'teacher';
+
+    function setRole(role) {
+        currentRole = role;
+        document.getElementById('btn-teacher').classList.toggle('active', role === 'teacher');
+        document.getElementById('btn-admin').classList.toggle('active', role === 'admin');
+        document.getElementById('teacher-fields').style.display = role === 'teacher' ? 'block' : 'none';
+    }
+
+    async function register() {
+      const fullName = document.getElementById("fullName").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const school_code = document.getElementById("school_code").value.trim().toUpperCase();
+      const subject = document.getElementById("subject").value.trim();
+      const msg = document.getElementById("msg");
+
+      if (!fullName || !email || !password || !school_code) {
+        msg.style.color = "#ff5252";
+        msg.innerText = "All fields are required!";
+        return;
+      }
+
+      msg.style.color = "#fff";
+      msg.innerText = "Syncing with Command Center...";
+
+      try {
+        const endpoint = currentRole === 'teacher' ? '/api/signup/teacher' : '/api/signup/student'; // We reuse student signup logic for profile creation but pass role
+        
+        // Actually, let's use a specialized endpoint if available, but for now we'll handle it in server.js
+        const res = await fetch("/api/signup/staff", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fullName, email, password, school_code, role: currentRole, subject })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          msg.style.color = "#affc41";
+          msg.innerText = "Registration Successful! Redirecting to login...";
+          setTimeout(() => window.location.href = "login.html", 2500);
+        } else {
+          msg.style.color = "#ff5252";
+          msg.innerText = data.error || "Registration Failed";
+        }
+      } catch (err) {
+        msg.style.color = "#ff5252";
+        msg.innerText = "Connection failure.";
+      }
+    }
+
+    // Populate Forest Background
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute'; tree.style.bottom = '0'; tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05'; tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+dotenv.config();
+
+const supabase = createClient(
+  process.env.SUPABASE_URL.trim(),
+  process.env.SUPABASE_SERVICE_ROLE_KEY.trim()
+);
+
+const run = async () => {
+  const { data, error } = await supabase.from("schools").select("school_name, school_code");
+  console.log(JSON.stringify(data));
+};
+run();

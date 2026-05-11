@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script>
+    // Auto API base: works both via file:// and http://localhost:4000
+    (function () {
+      var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+      if (!base) return;
+      var _f = window.fetch.bind(window);
+      window.fetch = function (url, opts) {
+        if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+        return _f(url, opts);
+      };
+    })();
+  </script>
+  <meta charset="utf-8" />
+  <title>Join EcoQuest | Start Your Journey</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('image.jpg') no-repeat center center fixed;
+      background-size: cover;
+      padding: 20px;
+    }
+
+    .logo-text {
+      font-weight: 900;
+      font-size: 2.2rem;
+      letter-spacing: -2px;
+      margin-bottom: 25px;
+      text-align: center;
+      color: #fff;
+    }
+
+    .logo-text span {
+      color: var(--accent);
+    }
+
+    .grid-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 500px) {
+      .grid-form {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+
+  <div class="glass-container" style="max-width: 550px; padding: 40px;">
+    <div class="logo-text">ECO<span>QUEST</span></div>
+
+    <div style="text-align:center; margin-bottom: 35px;">
+      <h2 style="font-size: 1.8rem; margin: 0; font-weight: 800; letter-spacing: -0.5px;">Create Account</h2>
+      <p style="opacity: 0.7; font-weight: 500; font-size: 0.95rem; margin-top: 5px;">Begin your mission to save the
+        planet!</p>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Full Name</label>
+      <input id="fullName" class="input-field" placeholder="E.g. Alex Rivera" autocomplete="name">
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Email Address</label>
+      <input id="email" type="email" class="input-field" placeholder="alex@example.com" autocomplete="email">
+    </div>
+
+    <div class="grid-form">
+      <div class="input-group">
+        <label class="input-label">Class / Grade</label>
+        <input id="className" class="input-field" placeholder="Grade 8-B">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Password</label>
+        <input id="password" type="password" class="input-field" placeholder="••••••••">
+      </div>
+    </div>
+
+    <div class="input-group" style="margin-top: 10px; margin-bottom: 30px;">
+      <label class="input-label">School ID Code</label>
+      <input id="school_code" class="input-field" placeholder="Enter school code (e.g. SC20MP)"
+        oninput="checkSchoolCode()">
+      <p id="schoolMsg" style="font-size: 0.85rem; margin-top: 8px; font-weight: 600; min-height: 20px;"></p>
+    </div>
+
+    <button id="signupBtn" class="btn-premium" onclick="signup()">Launch Journey</button>
+    <p id="msg" style="text-align:center; margin-top: 20px; font-weight: 700; min-height: 20px; font-size: 0.95rem;">
+    </p>
+
+    <div style="margin-top:30px; text-align:center; display: flex; flex-direction: column; gap: 15px; font-size: 0.95rem;">
+      <div>
+        <span style="opacity: 0.7;">Already on a quest?</span>
+        <a href="login.html" style="color: var(--accent); text-decoration: none; font-weight: 700; margin-left: 8px;">Login Here →</a>
+      </div>
+      <a href="index.html" style="color: #fff; text-decoration: none; opacity: 0.8; font-weight: 500;">Return to Home</a>
+    </div>
+  </div>
+
+
+
+  <script>
+    async function checkSchoolCode() {
+      const codeRaw = document.getElementById("school_code").value.trim();
+      const code = codeRaw ? codeRaw.toUpperCase() : "";
+      document.getElementById("school_code").value = code;
+      const el = document.getElementById("schoolMsg");
+      if (!code) { el.innerText = ""; return; }
+
+      try {
+        const res = await fetch(`/api/checkSchoolCode?code=${encodeURIComponent(code)}`);
+        const j = await res.json();
+        if (j.exists) { el.style.color = "#affc41"; el.innerText = "✓ Valid School: " + j.school_name; }
+        else { el.style.color = "#ff5252"; el.innerText = "× School code not found"; }
+      } catch (err) { el.style.color = "#ff5252"; el.innerText = "! Connecting..."; }
+    }
+
+    async function signup() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const fullName = document.getElementById("fullName").value.trim();
+      const className = document.getElementById("className").value.trim();
+      const school_code = document.getElementById("school_code").value.trim().toUpperCase();
+      const msg = document.getElementById("msg");
+
+      if (!email || !password || !fullName || !school_code) {
+        msg.style.color = "#ff5252";
+        msg.innerText = "Please fill all fields!";
+        return;
+      }
+
+      msg.style.color = "#fff";
+      msg.innerText = "Creating your profile...";
+
+      try {
+        const res = await fetch("/api/signup/student", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, full_name: fullName, class_name: className, school_code })
+        });
+
+        const j = await res.json();
+        if (j.message) {
+          msg.style.color = "#affc41";
+          msg.innerText = j.message;
+          setTimeout(() => { window.location.href = 'login.html'; }, 3000);
+        } else {
+          msg.style.color = "#ff5252";
+          msg.innerText = j.error || "Signup failed";
+        }
+      } catch (err) {
+        msg.style.color = "#ff5252";
+        msg.innerText = "Server unreachable";
+      }
+    }
+  </script>
+</body>
+
+</html>

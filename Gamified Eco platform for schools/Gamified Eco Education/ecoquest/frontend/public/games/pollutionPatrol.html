@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+    <meta charset="utf-8" />
+    <title>Sky Guardian Advanced | EcoQuest</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sky-blue: #00b4d8;
+            --toxic-purple: #4a4e69;
+            --toxic-green: #affc41;
+            --danger: #f43f5e;
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            background: #000;
+            overflow: hidden;
+            touch-action: none;
+            color: #fff;
+        }
+
+        canvas {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .hud {
+            position: fixed;
+            top: 30px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .hud-stat {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            padding: 15px 30px;
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .aqi-meter {
+            width: 250px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        #aqi-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4ade80, #facc15, #f43f5e);
+            transition: 0.3s;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 5, 20, 0.85);
+            backdrop-filter: blur(30px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: 0.5s;
+        }
+
+        .modal {
+            background: var(--glass);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 60px;
+            border-radius: 50px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 50px 100px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-prime {
+            background: var(--toxic-green);
+            color: #000;
+            padding: 22px 50px;
+            border-radius: 100px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 30px;
+            transition: 0.3s;
+            box-shadow: 0 10px 30px rgba(175, 252, 65, 0.3);
+        }
+
+        .btn-prime:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 50px rgba(175, 252, 65, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hud">
+        <div class="hud-stat">
+            <div style="font-size: 0.7rem; font-weight: 900; letter-spacing: 2px; color: var(--danger);">AQI INDEX</div>
+            <div class="aqi-meter">
+                <div id="aqi-fill"></div>
+            </div>
+        </div>
+        <div class="hud-stat">
+            <div style="font-size: 0.7rem; font-weight: 900; letter-spacing: 2px; color: var(--toxic-green);">CLEANSED
+            </div>
+            <div id="score" style="font-size: 2.2rem; font-weight: 900;">0000</div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="overlay" class="overlay">
+        <div class="modal">
+            <h1 style="font-size: 3.5rem; font-weight: 900; letter-spacing: -3px; margin-bottom: 20px;">POLLUTION PATROL
+            </h1>
+            <p id="subtext" style="opacity: 0.7; font-size: 1.2rem; line-height: 1.6;">Pilot the ECO-Drone and neutralize industrial
+                toxic plumes. If the Air Quality Index (AQI) reaches critical levels, the mission fails.</p>
+            <button class="btn-prime" onclick="initGame()">ON STATION</button>
+            <button class="btn-prime"
+                style="background:transparent; color:#fff; border:1px solid #333; font-size:1rem; margin-top:10px"
+                onclick="location.href='../games.html'">ABORT</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        const scoreEl = document.getElementById('score');
+        const aqiFill = document.getElementById('aqi-fill');
+
+        let w, h;
+        let active = false;
+        let score = 0;
+        let aqi = 50;
+        let time = 0;
+        let drone = { x: 0, y: 0, targetX: 0, targetY: 0, tilt: 0 };
+        let clouds = [];
+        let particles = [];
+
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+            drone.x = drone.targetX = w / 2;
+            drone.y = drone.targetY = h / 2;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        class ToxicCloud {
+            constructor() {
+                this.x = Math.random() * w;
+                this.y = h + 100;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = -(1 + Math.random() * 2);
+                this.size = 60 + Math.random() * 60;
+                this.health = 100;
+                this.isDone = false;
+                this.color = `hsla(${240 + Math.random() * 40}, 20%, 30%, 0.8)`;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.y < -100) {
+                    this.isDone = true;
+                    aqi = Math.min(500, aqi + 25);
+                }
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function initGame() {
+            active = true;
+            score = 0;
+            aqi = 50;
+            clouds = [];
+            particles = [];
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.visibility = 'hidden', 500);
+            requestAnimationFrame(gameLoop);
+        }
+
+        async function savePoints() {
+            const email = localStorage.getItem("userEmail");
+            if (email && typeof score !== 'undefined' && score > 0) {
+                console.log("Saving score:", score);
+                try {
+                    const res = await fetch("/api/users/addPoints", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ 
+                            email: email, 
+                            points_to_add: score,
+                            game_name: "Pollution Patrol"
+                        })
+                    });
+                    const data = await res.json();
+                    console.log("Score saved successfully:", data);
+                } catch (e) {
+                    console.error("Failed to save score:", e);
+                }
+            }
+        }
+
+        async function gameWin() {
+            active = false;
+            await savePoints();
+            overlay.style.visibility = 'visible';
+            overlay.style.opacity = '1';
+            document.querySelector('#overlay h1').innerText = "MISSION SUCCESS";
+            document.querySelector('#overlay p').innerHTML = `Atmospheric purification complete. Sky stability restored.<br><br>Cleansing Efficiency: <span style="font-size:2.8rem; color:var(--toxic-green); font-weight:900;">${score} UNITS</span>`;
+            document.querySelector('.btn-prime').innerText = "PLAY AGAIN";
+            
+            if (!document.getElementById('dash-btn')) {
+                const btn = document.createElement('button');
+                btn.id = 'dash-btn';
+                btn.className = 'btn-prime';
+                btn.style.marginTop = '10px';
+                btn.style.background = 'transparent';
+                btn.style.color = '#fff';
+                btn.style.border = '1px solid #333';
+                btn.innerText = "RETURN TO DASHBOARD";
+                btn.onclick = () => location.href = '../student.html';
+                document.querySelector('.modal').appendChild(btn);
+            }
+        }
+
+        async function gameOver() {
+            active = false;
+            await savePoints();
+            overlay.style.visibility = 'visible';
+            overlay.style.opacity = '1';
+            document.querySelector('#overlay h1').innerText = "ATMOSPHERE LOST";
+            document.querySelector('#overlay p').innerHTML = `AQI has exceeded lethal limits. Environmental collapse initiated.<br><br>Cleansing Efficiency: <span style="font-size:2.8rem; color:var(--toxic-green); font-weight:900;">${score} UNITS</span>`;
+            document.querySelector('.btn-prime').innerText = "RESTORE SKY";
+            
+            if (!document.getElementById('dash-btn')) {
+                const btn = document.createElement('button');
+                btn.id = 'dash-btn';
+                btn.className = 'btn-prime';
+                btn.style.marginTop = '10px';
+                btn.style.background = 'transparent';
+                btn.style.color = '#fff';
+                btn.style.border = '1px solid #333';
+                btn.innerText = "RETURN TO DASHBOARD";
+                btn.onclick = () => location.href = '../student.html';
+                document.querySelector('.modal').appendChild(btn);
+            }
+        }
+
+        function gameLoop() {
+            if (!active) return;
+            time++;
+
+            aqi = Math.max(0, aqi - 0.05);
+            aqiFill.style.width = (aqi / 5) + '%';
+            if (aqi >= 500) gameOver();
+
+            const grad = ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, '#023e8a'); grad.addColorStop(1, '#ade8f4');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+
+            drone.x += (drone.targetX - drone.x) * 0.1;
+            drone.y += (drone.targetY - drone.y) * 0.1;
+            drone.tilt = (drone.targetX - drone.x) * 0.02;
+
+            if (time % Math.max(20, 60 - Math.floor(score / 1000)) === 0) clouds.push(new ToxicCloud());
+
+            clouds = clouds.filter(c => {
+                c.update();
+                c.draw();
+                if (active && Math.sqrt(Math.pow(drone.x - c.x, 2) + Math.pow(drone.y - c.y, 2)) < c.size + 40) {
+                    c.health -= 5;
+                    createParticles(c.x, c.y, '#affc41');
+                    if (c.health <= 0) {
+                        score += 100;
+                        scoreEl.innerText = score.toString().padStart(4, '0');
+                        if (score >= 2000) gameWin();
+                        return false;
+                    }
+                }
+                return !c.isDone;
+            });
+
+            particles = particles.filter(p => {
+                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.col;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = 1;
+                return p.life > 0;
+            });
+
+            ctx.save();
+            ctx.translate(drone.x, drone.y);
+            ctx.rotate(drone.tilt);
+            ctx.strokeStyle = `rgba(175, 252, 65, ${0.3 + Math.sin(time * 0.1) * 0.2})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(0, 0, 50 + Math.sin(time * 0.2) * 10, 0, Math.PI * 2); ctx.stroke();
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 10;
+            ctx.beginPath(); ctx.moveTo(-40, -40); ctx.lineTo(40, 40); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(40, -40); ctx.lineTo(-40, 40); ctx.stroke();
+            ctx.fillStyle = '#666';
+            for (let i = 0; i < 4; i++) {
+                ctx.save();
+                ctx.rotate(i * Math.PI / 2 + time * 0.8);
+                ctx.fillRect(30, -5, 30, 10);
+                ctx.restore();
+            }
+            ctx.fillStyle = '#111';
+            ctx.beginPath(); ctx.roundRect(-20, -20, 40, 40, 8); ctx.fill();
+            ctx.fillStyle = '#affc41';
+            ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function createParticles(x, y, col) {
+            for (let i = 0; i < 3; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    size: 2 + Math.random() * 4,
+                    life: 1,
+                    col
+                });
+            }
+        }
+
+        window.addEventListener('mousemove', e => { drone.targetX = e.clientX; drone.targetY = e.clientY; });
+        window.addEventListener('touchmove', e => {
+            e.preventDefault();
+            drone.targetX = e.touches[0].clientX;
+            drone.targetY = e.touches[0].clientY;
+        }, { passive: false });
+    </script>
+</body>
+
+</html>
+

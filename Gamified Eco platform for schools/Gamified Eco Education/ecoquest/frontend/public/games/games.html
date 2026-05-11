@@ -1,0 +1,125 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Eco Games – EcoQuest</title>
+  <link rel="stylesheet" href="../style.css">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: linear-gradient(135deg, #0d4f24, #083d19);
+      color: white;
+    }
+
+    .games-header {
+      text-align: center;
+      padding: 20px;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      padding: 20px;
+      width: 90%;
+      margin: auto;
+    }
+
+    .game-card {
+      background: rgba(255,255,255,0.12);
+      padding: 25px;
+      border-radius: 16px;
+      text-align: center;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.15);
+      transition: 0.25s;
+    }
+
+    .game-card:hover {
+      background: rgba(255,255,255,0.22);
+      transform: translateY(-6px);
+    }
+
+    .game-emoji {
+      font-size: 45px;
+      margin-bottom: 10px;
+    }
+
+    .game-card h3 {
+      font-size: 20px;
+      margin-top: 5px;
+    }
+
+    .back-btn {
+      margin: 20px;
+      display: inline-block;
+      padding: 10px 20px;
+      background: #ffe600;
+      color: #064017;
+      border-radius: 10px;
+      font-weight: bold;
+      text-decoration: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="games-header">🎮 Eco Games</div>
+
+  <div class="games-grid">
+
+    <!-- GAME 1 – Energy Saver Puzzle -->
+    <div class="game-card" onclick="location.href='energySaver.html'">
+      <div class="game-emoji">💡</div>
+      <h3>Energy Saver Puzzle</h3>
+      <p>Choose the most eco-friendly action</p>
+    </div>
+
+    <!-- GAME 2 – Water Saver Game (coming next) -->
+    <div class="game-card">
+      <div class="game-emoji">🚰</div>
+      <h3>Water Saver Challenge</h3>
+      <p>Turn off taps before water overflows</p>
+    </div>
+
+    <!-- GAME 3 – Recycle Sorter Game -->
+    <div class="game-card">
+      <div class="game-emoji">♻️</div>
+      <h3>Recycle Sorter</h3>
+      <p>Drag & drop items into correct bins</p>
+    </div>
+
+    <!-- GAME 4 – Eco Runner -->
+    <div class="game-card">
+      <div class="game-emoji">🏃‍♂️🌱</div>
+      <h3>Eco Runner</h3>
+      <p>Avoid pollution & collect eco-badges</p>
+    </div>
+
+  </div>
+
+  <center>
+    <a class="back-btn" href="../student.html">← Back to Dashboard</a>
+  </center>
+
+</body>
+</html>
+
+

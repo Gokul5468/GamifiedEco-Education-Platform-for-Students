@@ -1,0 +1,156 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Eco Clubs | EcoQuest</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .club-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 25px;
+      margin-top: 40px;
+    }
+
+    .club-card {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 35px;
+      padding: 40px;
+      transition: 0.4s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .club-card:hover {
+      transform: translateY(-10px);
+      border-color: var(--accent);
+    }
+
+    .club-card h3 {
+      font-size: 1.8rem;
+      margin: 15px 0 10px;
+    }
+
+    .club-card p {
+      opacity: 0.6;
+      line-height: 1.6;
+      margin-bottom: 25px;
+    }
+
+    .join-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      padding: 12px 25px;
+      border-radius: 100px;
+      font-weight: 800;
+      cursor: pointer;
+      width: 100%;
+      transition: 0.3s;
+    }
+
+    .join-btn:hover {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .join-btn.member {
+      background: #166534;
+      color: #affc41;
+      cursor: default;
+      border: none;
+    }
+
+    .create-club-banner {
+      background: linear-gradient(135deg, #1b4332 0%, #064e3b 100%);
+      padding: 60px;
+      border-radius: 40px;
+      text-align: center;
+      margin-bottom: 60px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <a href="student.html" class="back-nav"
+    style="position:fixed; top:40px; left:40px; text-decoration:none; color:#fff; font-weight:700; z-index:1000;">←
+    Dashboard</a>
+
+  <div class="dashboard-wrapper">
+    <div class="create-club-banner">
+      <h1 style="font-size: 3.5rem; font-weight: 900; letter-spacing: -3px; margin-bottom: 10px;">ENVIRONMENTAL
+        <span>CLUBS</span>
+      </h1>
+      <p style="opacity: 0.8; font-size: 1.2rem; margin-bottom: 30px;">Unity is our strongest tool against climate
+        change. Find your tribe or start your own mission.</p>
+    </div>
+
+    <!-- Dynamic Options -->
+    <div class="club-grid" id="optionsGrid" style="grid-template-columns: 1fr 1fr; max-width: 800px; margin: 0 auto;">
+
+      <!-- JOIN -->
+      <div class="club-card" style="text-align:center; cursor:pointer;"
+        onclick="window.location.href='clubs/clubJoin.html'">
+        <div style="font-size: 4rem; margin-bottom: 20px;">🔍</div>
+        <h3>Find a Squad</h3>
+        <p>Browse existing eco clubs in your school district and join the movement.</p>
+        <button class="join-btn">Browse Clubs</button>
+      </div>
+
+      <!-- CREATE -->
+      <div class="club-card" style="text-align:center; cursor:pointer;"
+        onclick="window.location.href='clubs/clubCreate.html'">
+        <div style="font-size: 4rem; margin-bottom: 20px;">🚩</div>
+        <h3>Start Your Own</h3>
+        <p>Take the lead. Establish a new chapter and recruit fellow rangers.</p>
+        <button class="join-btn" style="background: var(--accent); color: #000;">Charter Club</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // If already in a club, redirect to home
+    const existingClubId = localStorage.getItem("club_id");
+    if (existingClubId) {
+      // Optional: verify with backend if still member? For now trust storage for speed
+      window.location.href = "clubs/clubHome.html";
+    }
+
+    // Background script
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute';
+      tree.style.bottom = '0';
+      tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05';
+      tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+  </script>
+</body>
+
+</html>
+

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Knowledge Test | EcoQuest</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .topic-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 30px;
+      margin-top: 50px;
+    }
+
+    .topic-card {
+      background: var(--glass);
+      backdrop-filter: blur(25px);
+      border: 1px solid var(--glass-border);
+      border-radius: 30px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.4s;
+    }
+
+    .topic-card:hover {
+      transform: translateY(-10px);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--accent);
+    }
+
+    .topic-card h3 {
+      font-size: 1.8rem;
+      margin: 20px 0 10px;
+    }
+
+    .topic-card p {
+      opacity: 0.6;
+      line-height: 1.6;
+    }
+
+    #quizView {
+      display: none;
+    }
+
+    .quiz-card {
+      background: var(--glass);
+      padding: 50px;
+      border-radius: 40px;
+      border: 1px solid var(--glass-border);
+      max-width: 800px;
+      margin: 50px auto;
+    }
+
+    .opt-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    .opt-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      padding: 25px;
+      border-radius: 20px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .opt-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <a href="student.html" class="back-nav"
+    style="position:fixed; top:40px; left:40px; text-decoration:none; color:#fff; font-weight:700; z-index:1000;">←
+    Dashboard</a>
+
+  <div class="dashboard-wrapper">
+    <div id="topicView">
+      <div style="text-align:center;">
+        <h1 style="font-size: 4rem; font-weight: 900; letter-spacing: -3px; color: #fff;">KNOWLEDGE <span>TEST</span>
+        </h1>
+        <p style="opacity: 0.6; font-size: 1.2rem;">Select a specialized environmental discipline to begin your
+          certification.</p>
+      </div>
+
+      <div class="topic-selector">
+        <div class="topic-card" onclick="startQuiz('Oceans')">
+          <div style="font-size: 4rem;">🌊</div>
+          <h3>Oceanic Science</h3>
+          <p>Test your knowledge on marine ecosystems, plastic pollution, and reef conservation.</p>
+        </div>
+        <div class="topic-card" onclick="startQuiz('Climate')">
+          <div style="font-size: 4rem;">🌍</div>
+          <h3>Climate Action</h3>
+          <p>Challenge yourself on global warming, carbon footprints, and atmospheric cycles.</p>
+        </div>
+        <div class="topic-card" onclick="startQuiz('Energy')">
+          <div style="font-size: 4rem;">⚡</div>
+          <h3>Renewable Energy</h3>
+          <p>Master the concepts of solar, wind, and geothermal power generation.</p>
+        </div>
+        <div class="topic-card" onclick="startQuiz('Biodiversity')">
+          <div style="font-size: 4rem;">🦊</div>
+          <h3>Biodiversity</h3>
+          <p>Learn about endangered species, habitat restoration, and ecological balance.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="quizView">
+      <div class="quiz-card">
+        <div id="qNum" style="color:var(--accent); font-weight:900; letter-spacing:2px; margin-bottom:10px;">QUESTION
+          1/5</div>
+        <h2 id="qText" style="font-size: 2rem; margin: 0; line-height:1.2;">Loading Question...</h2>
+        <div class="opt-grid" id="optGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const bank = {
+      'Oceans': [
+        { q: "What is the primary cause of ocean acidification?", o: ["Plastic Waste", "CO2 Absorption", "Oil Spills", "Overfishing"], a: 1 },
+        { q: "Which ocean contains the Great Garbage Patch?", o: ["Atlantic", "Indian", "Pacific", "Arctic"], a: 2 },
+        { q: "What percentage of marine life depends on coral reefs?", o: ["5%", "25%", "50%", "75%"], a: 1 }
+      ],
+      'Climate': [
+        { q: "Which gas is most responsible for the greenhouse effect?", o: ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"], a: 2 },
+        { q: "What is the primary goal of the Paris Agreement?", o: ["End Poverty", "Control Warming", "Clean Oceans", "Space Travel"], a: 1 },
+        { q: "Permafrost thawing releases which potent greenhouse gas?", o: ["Oxygen", "Methane", "Argon", "Helium"], a: 1 }
+      ],
+      'Energy': [
+        { q: "Which of these is a non-renewable energy source?", o: ["Solar", "Wind", "Nuclear", "Tidal"], a: 2 },
+        { q: "What device converts sunlight directly into electricity?", o: ["Wind Turbine", "Photovoltaic Cell", "Dynamo", "Battery"], a: 1 }
+      ],
+      'Biodiversity': [
+        { q: "A species that has a disproportionately large effect on its environment is called?", o: ["Invasive", "Keystone", "Apex", "Endemic"], a: 1 },
+        { q: "Which biome has the highest biodiversity?", o: ["Tundra", "Desert", "Tropical Rainforest", "Savanna"], a: 2 }
+      ]
+    };
+
+    let activeTopicName = "";
+    let currentTopic = [];
+    let curIdx = 0;
+    let score = 0;
+
+    function startQuiz(topic) {
+      activeTopicName = topic;
+      currentTopic = bank[topic] || bank['Oceans'];
+      curIdx = 0;
+      score = 0;
+      document.getElementById('topicView').style.display = 'none';
+      document.getElementById('quizView').style.display = 'block';
+      showQuestion();
+    }
+
+    function showQuestion() {
+      const data = currentTopic[curIdx];
+      document.getElementById('qNum').innerText = `QUESTION ${curIdx + 1}/${currentTopic.length}`;
+      document.getElementById('qText').innerText = data.q;
+      const grid = document.getElementById('optGrid');
+      grid.innerHTML = data.o.map((opt, i) => `
+                <button class="opt-btn" onclick="check(${i})">${opt}</button>
+            `).join('');
+    }
+
+    function check(idx) {
+      if (idx === currentTopic[curIdx].a) {
+        score += 100;
+        alert("Correct! +100 Eco Assets");
+      } else {
+        alert("Incorrect. Moving to next question.");
+      }
+      curIdx++;
+      if (curIdx < currentTopic.length) showQuestion();
+      else finish();
+    }
+
+    async function finish() {
+      const email = localStorage.getItem('userEmail');
+      const topicName = activeTopicName || 'General';
+      
+      if (!email) {
+        alert(`Test Complete! (Demo mode) Total Score: ${score}`);
+        location.href = 'student.html';
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/quiz/submit", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email,
+            quiz_id: topicName,
+            score: score,
+            total_questions: currentTopic.length,
+            correct_answers: score / 100
+          })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          alert(`Test Complete! Score: ${score}. You earned ${score} Eco Assets! Total Points: ${data.new_points}`);
+          if (data.earned_badges && data.earned_badges.length > 0) {
+            alert("NEW BADGE EARNED: " + data.earned_badges.map(b => b.badge_name).join(", "));
+          }
+        } else {
+          alert(`Test Complete! Score: ${score}`);
+        }
+      } catch (e) {
+        console.error("Quiz submission error:", e);
+        alert(`Test Complete! Score: ${score}`);
+      }
+      
+      location.href = 'student.html';
+    }
+
+    // Background script
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute';
+      tree.style.bottom = '0';
+      tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05';
+      tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+  </script>
+</body>
+
+</html>

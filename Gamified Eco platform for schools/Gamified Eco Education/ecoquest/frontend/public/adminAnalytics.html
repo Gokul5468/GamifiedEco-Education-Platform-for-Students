@@ -1,0 +1,158 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Analytics | EcoQuest Admin</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .stat-pills { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 35px; }
+    .stat-pill {
+      flex: 1; min-width: 130px; padding: 22px 20px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 22px; text-align: center;
+    }
+    .pill-val { font-size: 2.4rem; font-weight: 900; }
+    .pill-lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0.5; margin-top: 5px; }
+    .section-title { font-size: 1.4rem; font-weight: 800; margin: 35px 0 15px; letter-spacing: -0.5px; }
+    .bar-row { display: flex; align-items: center; gap: 15px; margin-bottom: 12px; }
+    .bar-label { min-width: 180px; font-weight: 700; font-size: 0.9rem; opacity: 0.8; }
+    .bar-track {
+      flex: 1; height: 32px; background: rgba(255,255,255,0.05);
+      border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);
+    }
+    .bar-fill {
+      height: 100%; border-radius: 10px;
+      background: linear-gradient(90deg, #4ade80, #affc41);
+      display: flex; align-items: center; padding-left: 10px;
+      font-size: 0.8rem; font-weight: 800; color: #000;
+      transition: width 0.8s ease;
+    }
+    .bar-fill.school-bar { background: linear-gradient(90deg, #00b4d8, #9d4edd); }
+    .back-nav {
+      position: fixed; top: 40px; left: 40px; z-index: 100;
+      color: #fff; text-decoration: none; font-weight: 700;
+      display: flex; align-items: center; gap: 10px; opacity: 0.6; transition: 0.3s;
+    }
+    .back-nav:hover { opacity: 1; transform: translateX(-5px); }
+    .school-row { display: flex; align-items: center; gap: 15px; padding: 14px 20px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; margin-bottom: 10px; }
+    .school-rank { font-size: 1.3rem; min-width: 40px; font-weight: 900; }
+    .school-code { font-weight: 800; font-size: 1.05rem; flex: 1; }
+    .school-pts { font-size: 1.3rem; font-weight: 900; color: #00b4d8; }
+    .refresh-badge { font-size: 0.75rem; opacity: 0.4; margin-left: 10px; vertical-align: middle; }
+  </style>
+</head>
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+  <a href="admin.html" class="back-nav">← Admin Panel</a>
+  <div class="dashboard-wrapper" style="padding-top: 80px; max-width: 900px;">
+    <h1 style="font-size:3rem; font-weight:900; letter-spacing:-2px; margin:0;">📊 Platform Analytics <span class="refresh-badge" id="lastRefresh"></span></h1>
+    <p style="opacity:0.4; margin-top:8px; margin-bottom:30px;">Auto-refreshes every 60 seconds.</p>
+
+    <div class="stat-pills">
+      <div class="stat-pill"><div class="pill-val" id="aStudents" style="color:#4ade80">—</div><div class="pill-lbl">Students</div></div>
+      <div class="stat-pill"><div class="pill-val" id="aTeachers" style="color:#f59e0b">—</div><div class="pill-lbl">Teachers</div></div>
+      <div class="stat-pill"><div class="pill-val" id="aActive" style="color:#affc41">—</div><div class="pill-lbl">Active Now</div></div>
+      <div class="stat-pill"><div class="pill-val" id="aNew7d" style="color:#00b4d8">—</div><div class="pill-lbl">New (7 days)</div></div>
+    </div>
+
+    <div class="section-title">🎮 Game Popularity</div>
+    <div id="gameBars"></div>
+
+    <div class="section-title">🏫 Top Schools by Eco Points</div>
+    <div id="schoolList"></div>
+  </div>
+
+  <script>
+    if (!localStorage.getItem('userEmail') || localStorage.getItem('userRole') !== 'admin') {
+      location.href = 'login.html';
+    }
+
+    async function loadAnalytics() {
+      try {
+        const res = await fetch('/api/admin/analytics');
+        const d = await res.json();
+
+        document.getElementById('aStudents').innerText = d.role_counts?.student ?? 0;
+        document.getElementById('aTeachers').innerText = d.role_counts?.teacher ?? 0;
+        document.getElementById('aActive').innerText = d.active_now ?? 0;
+        document.getElementById('aNew7d').innerText = d.new_users_7d ?? 0;
+        document.getElementById('lastRefresh').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+
+        // Game bars
+        const gameBars = document.getElementById('gameBars');
+        gameBars.innerHTML = '';
+        const games = d.game_stats || [];
+        const maxGames = games.length ? games[0].play_count : 1;
+        if (!games.length) {
+          gameBars.innerHTML = '<div style="opacity:0.4;padding:20px 0;">No game data yet.</div>';
+        } else {
+          games.forEach(g => {
+            const pct = Math.max(5, Math.round((g.play_count / maxGames) * 100));
+            gameBars.innerHTML += `
+              <div class="bar-row">
+                <div class="bar-label">${g.game_name}</div>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width:${pct}%">${g.play_count} plays</div>
+                </div>
+              </div>`;
+          });
+        }
+
+        // School list
+        const schoolList = document.getElementById('schoolList');
+        schoolList.innerHTML = '';
+        const schools = d.top_schools || [];
+        const maxSchool = schools.length ? schools[0].total_points : 1;
+        if (!schools.length) {
+          schoolList.innerHTML = '<div style="opacity:0.4;padding:20px 0;">No school data yet.</div>';
+        } else {
+          schools.forEach((s, i) => {
+            const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+            const pct = Math.max(5, Math.round((s.total_points / maxSchool) * 100));
+            schoolList.innerHTML += `
+              <div class="school-row">
+                <div class="school-rank">${rankEmoji}</div>
+                <div class="school-code">${s.school_code || '—'}</div>
+                <div class="bar-track" style="max-width:200px">
+                  <div class="bar-fill school-bar" style="width:${pct}%"></div>
+                </div>
+                <div class="school-pts">${s.total_points.toLocaleString()} pts</div>
+              </div>`;
+          });
+        }
+      } catch(e) {
+        console.error('Analytics load failed', e);
+      }
+    }
+
+    const forest = document.getElementById('forest');
+    for (let i = 0; i < Math.floor(window.innerWidth/80); i++) {
+      const t = document.createElement('div');
+      t.style.cssText = `position:absolute;bottom:0;left:${Math.random()*100}%;opacity:0.05;transform:scale(${0.5+Math.random()})`;
+      t.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff"/></svg>`;
+      forest.appendChild(t);
+    }
+
+    window.addEventListener('load', () => {
+      loadAnalytics();
+      setInterval(loadAnalytics, 60000);
+    });
+  </script>
+</body>
+</html>
+
+

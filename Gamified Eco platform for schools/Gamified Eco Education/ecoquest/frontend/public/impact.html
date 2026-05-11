@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script>
+    // Auto API base: works both via file:// and http://localhost:4000
+    (function () {
+      var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+      if (!base) return;
+      var _f = window.fetch.bind(window);
+      window.fetch = function (url, opts) {
+        if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+        return _f(url, opts);
+      };
+    })();
+  </script>
+  <meta charset="utf-8" />
+  <title>Impact Tracker | EcoQuest</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .stat-banner {
+      background: linear-gradient(135deg, #064e3b 0%, #1b4332 100%);
+      padding: 80px 40px;
+      border-radius: 40px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 50px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 30px;
+    }
+
+    .metric-card {
+      background: var(--glass);
+      padding: 40px;
+      border-radius: 35px;
+      border: 1px solid var(--glass-border);
+      text-align: center;
+      transition: 0.3s;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-10px);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .metric-card h2 {
+      font-size: 3rem;
+      margin: 10px 0;
+      color: var(--accent);
+    }
+
+    .metric-card p {
+      opacity: 0.6;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 800;
+      font-size: 0.8rem;
+    }
+
+    .progress-circle-wrap {
+      width: 150px;
+      height: 150px;
+      margin: 0 auto 20px;
+      position: relative;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+
+  <a href="student.html" class="back-nav"
+    style="position:fixed; top:40px; left:40px; text-decoration:none; color:#fff; font-weight:700; z-index:1000;">←
+    Dashboard</a>
+
+  <div class="dashboard-wrapper">
+    <div class="stat-banner">
+      <h1 style="font-size: 4rem; font-weight: 900; letter-spacing: -3px; margin:0;">YOUR <span>IMPACT</span></h1>
+      <p style="opacity: 0.7; font-size: 1.2rem; margin-top: 10px;">Visualizing the biological and atmospheric changes
+        you've pioneered.</p>
+    </div>
+
+    <div class="metric-grid">
+      <div class="metric-card">
+        <p>CO2 Sequestered</p>
+        <h2 id="co2">0 Kg</h2>
+        <div style="font-size: 0.9rem; opacity: 0.5;">Equivalent to points from energy saving</div>
+      </div>
+      <div class="metric-card">
+        <p>Clean Water Protected</p>
+        <h2 id="water">0 L</h2>
+        <div style="font-size: 0.9rem; opacity: 0.5;">Saved via water conservation</div>
+      </div>
+      <div class="metric-card">
+        <p>Species Relocated</p>
+        <h2 id="species">0</h2>
+        <div style="font-size: 0.9rem; opacity: 0.5;">Wildlife protection milestones</div>
+      </div>
+      <div class="metric-card">
+        <p>Renewable Efficacy</p>
+        <h2 id="energy">0%</h2>
+        <div style="font-size: 0.9rem; opacity: 0.5;">Solar grid performance</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function animate(id, target, suffix) {
+      let cur = 0;
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      if (target === 0) {
+        el.innerText = "0" + suffix;
+        return;
+      }
+
+      const int = setInterval(() => {
+        if (cur >= target) {
+          el.innerText = target + suffix;
+          clearInterval(int);
+        } else {
+          cur += Math.ceil(target / 30);
+          if (cur > target) cur = target;
+          el.innerText = cur + suffix;
+        }
+      }, 30);
+    }
+
+    // Load actual data from backend
+    window.addEventListener('load', async () => {
+      const email = localStorage.getItem('userEmail');
+      if (!email) {
+        // Fallback to demo if not logged in
+        animate('co2', 124, ' Kg');
+        animate('water', 4500, ' L');
+        animate('species', 84, '');
+        animate('energy', 92, '%');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/users/impact?email=${encodeURIComponent(email)}`);
+        const data = await res.json();
+
+        animate('co2', data.co2 || 0, ' Kg');
+        animate('water', data.water || 0, ' L');
+        animate('species', data.species || 0, '');
+        animate('energy', data.energy || 0, '%');
+      } catch (e) {
+        console.error("Impact load error:", e);
+        animate('co2', 0, ' Kg');
+        animate('water', 0, ' L');
+        animate('species', 0, '');
+        animate('energy', 0, '%');
+      }
+    });
+
+    // Background script
+    const forest = document.getElementById('forest');
+    const treeCount = Math.floor(window.innerWidth / 80);
+    for (let i = 0; i < treeCount; i++) {
+      const tree = document.createElement('div');
+      tree.style.position = 'absolute';
+      tree.style.bottom = '0';
+      tree.style.left = (Math.random() * 100) + '%';
+      tree.style.opacity = '0.05';
+      tree.style.transform = `scale(${0.5 + Math.random()})`;
+      tree.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff" /></svg>`;
+      forest.appendChild(tree);
+    }
+  </script>
+</body>
+
+</html>

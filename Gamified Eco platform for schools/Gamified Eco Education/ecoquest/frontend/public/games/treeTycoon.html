@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+<meta charset="utf-8">
+<title>Climate Guardian | EcoQuest</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Outfit',sans-serif;background:#0a0a1a;color:#fff;overflow:hidden;touch-action:none;}
+  canvas{display:block;position:fixed;top:0;left:0;z-index:1;}
+
+  .hud{position:fixed;top:14px;left:0;width:100%;display:flex;justify-content:space-between;align-items:center;padding:0 14px;z-index:100;pointer-events:none;}
+  .hud-box{background:rgba(0,0,0,0.5);backdrop-filter:blur(14px);padding:8px 18px;border-radius:18px;border:1px solid rgba(255,255,255,0.1);text-align:center;}
+  .hud-label{font-size:0.6rem;text-transform:uppercase;letter-spacing:2px;color:#4ade80;font-weight:800;}
+  .hud-val{font-size:1.6rem;font-weight:900;line-height:1.1;}
+
+  /* health bar */
+  .health-wrap{width:140px;}
+  .health-bar{height:10px;background:rgba(255,255,255,0.1);border-radius:20px;overflow:hidden;margin-top:6px;}
+  #healthFill{height:100%;width:100%;background:linear-gradient(90deg,#f43f5e,#4ade80);border-radius:20px;transition:width .3s;}
+
+  /* fact bubble */
+  #factBubble{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(10,20,40,0.92);backdrop-filter:blur(20px);border:1px solid rgba(74,222,128,0.4);padding:14px 22px;border-radius:20px;max-width:92%;text-align:center;font-size:0.95rem;line-height:1.5;z-index:300;opacity:0;transition:opacity .4s;pointer-events:none;}
+  #factBubble.show{opacity:1;}
+  #factBubble span{color:#4ade80;font-weight:700;}
+
+  /* mobile controls */
+  .ctrl{position:fixed;bottom:20px;z-index:200;display:none;gap:12px;}
+  .ctrl.left-ctrl{left:20px;flex-direction:column;}
+  .ctrl.right-ctrl{right:20px;}
+  .ctrl-btn{width:68px;height:68px;border-radius:50%;background:rgba(74,222,128,0.25);border:2px solid rgba(74,222,128,0.5);color:#fff;font-size:1.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;user-select:none;}
+  .ctrl-btn:active{background:rgba(74,222,128,0.5);}
+
+  /* overlay */
+  .overlay{position:fixed;inset:0;background:rgba(0,5,20,0.88);backdrop-filter:blur(28px);display:flex;align-items:center;justify-content:center;z-index:1000;transition:opacity .5s;}
+  .modal{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);padding:46px 36px;border-radius:40px;max-width:480px;width:92%;text-align:center;box-shadow:0 40px 100px rgba(0,0,0,0.6);}
+  .modal-title{font-size:2.8rem;font-weight:900;letter-spacing:-2px;background:linear-gradient(135deg,#4ade80,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:10px;filter:drop-shadow(0 0 20px rgba(74,222,128,0.5));}
+  .modal-sub{opacity:.75;font-size:1.05rem;line-height:1.65;margin-bottom:8px;}
+  .btn-play{background:linear-gradient(135deg,#4ade80,#22d3ee);color:#000;padding:18px 40px;border-radius:100px;font-size:1.25rem;font-weight:900;border:none;cursor:pointer;width:100%;margin-top:22px;box-shadow:0 12px 35px rgba(74,222,128,0.35);transition:.3s;font-family:'Outfit',sans-serif;}
+  .btn-play:hover{transform:translateY(-4px);box-shadow:0 18px 45px rgba(74,222,128,0.5);}
+  .btn-exit{background:transparent;color:#fff;margin-top:12px;border:1px solid rgba(255,255,255,0.15);padding:12px;border-radius:100px;width:100%;cursor:pointer;font-weight:700;font-family:'Outfit',sans-serif;font-size:1rem;}
+
+  @media(max-width:600px){
+    .hud-val{font-size:1.2rem;}
+    .health-wrap{width:110px;}
+    .ctrl{display:flex;}
+    .modal-title{font-size:2.1rem;}
+    .btn-play{font-size:1.1rem;padding:14px 28px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="hud-box">
+    <div class="hud-label">Score</div>
+    <div class="hud-val" id="scoreEl">0</div>
+  </div>
+  <div class="hud-box health-wrap">
+    <div class="hud-label">Planet Health</div>
+    <div class="health-bar"><div id="healthFill"></div></div>
+  </div>
+  <div class="hud-box">
+    <div class="hud-label">Level</div>
+    <div class="hud-val" id="levelEl">1</div>
+  </div>
+</div>
+
+<canvas id="gc"></canvas>
+
+<!-- Mobile Controls -->
+<div class="ctrl left-ctrl" id="ctrlLeft">
+  <button class="ctrl-btn" id="btnUp">▲</button>
+  <button class="ctrl-btn" id="btnDown">▼</button>
+</div>
+<div class="ctrl right-ctrl" id="ctrlRight">
+  <button class="ctrl-btn" id="btnShoot">💚</button>
+</div>
+
+<!-- Eco Fact Bubble -->
+<div id="factBubble">🌍 <span id="factText"></span></div>
+
+<!-- Overlay -->
+<div id="overlay" class="overlay">
+  <div class="modal">
+    <div class="modal-title" id="oTitle">🌿 CLIMATE GUARDIAN</div>
+    <p class="modal-sub" id="oSub">
+      Pollution clouds are attacking Earth's atmosphere!<br>
+      Fly your Eco-Drone, shoot <b>green energy beams</b> to destroy pollution,
+      and learn eco facts along the way. Protect the planet! 🌍
+    </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:14px;font-size:0.8rem;opacity:.6;">
+      <span>⬆⬇ Move</span><span>|</span><span>SPACE / Click Shoot</span><span>|</span><span>Mobile buttons ✓</span>
+    </div>
+    <button class="btn-play" onclick="startGame()">START MISSION</button>
+    <button class="btn-exit" onclick="location.href='../games.html'">← BACK TO GAMES</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gc');
+const ctx    = canvas.getContext('2d');
+let W, H;
+
+// ── State ──────────────────────────────────────────────────────
+let active=false, score=0, health=100, level=1, frame=0, spawnTimer=0;
+let bullets=[], enemies=[], particles=[], stars=[];
+const keys={};
+
+// ── Player ─────────────────────────────────────────────────────
+const ship = { x:0, y:0, w:60, h:44, vy:0, speed:5, shootCd:0 };
+
+// ── Eco Facts ──────────────────────────────────────────────────
+const ECO_FACTS = [
+  "Recycling one aluminium can saves enough energy to run a TV for 3 hours!",
+  "Trees absorb 48 lbs of CO₂ per year — plant more trees to fight climate change.",
+  "Over 8 million tonnes of plastic enter the ocean every year.",
+  "Solar panels can reduce your household carbon footprint by 1-2 tonnes of CO₂/year.",
+  "Turning off lights when not needed can cut your energy use by 10%.",
+  "1.5°C global warming could put 70% of coral reefs at risk of extinction.",
+  "Electric vehicles produce 50% fewer emissions than petrol cars over their lifetime.",
+  "A single dripping tap can waste over 5,000 litres of water per year!",
+  "Composting food waste reduces methane emissions from landfills.",
+  "Wind energy is now the cheapest source of electricity in many countries.",
+  "The Amazon rainforest produces 20% of Earth's oxygen supply.",
+  "Using reusable bags can prevent hundreds of plastic bags from reaching landfills.",
+];
+
+let factVisible = false;
+function showFact(txt) {
+  if (factVisible) return;
+  factVisible = true;
+  document.getElementById('factText').innerText = txt;
+  const b = document.getElementById('factBubble');
+  b.classList.add('show');
+  setTimeout(() => { b.classList.remove('show'); setTimeout(()=>factVisible=false, 400); }, 3200);
+}
+
+// ── Resize ─────────────────────────────────────────────────────
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  ship.x = W * 0.12;
+  if (!active) ship.y = H / 2;
+  stars = Array(120).fill(0).map(()=>({ x:Math.random()*W, y:Math.random()*H, r:Math.random()*1.5+.3, s:Math.random()*.5+.2 }));
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Input ──────────────────────────────────────────────────────
+window.addEventListener('keydown', e=>{ keys[e.code]=true; if(e.code==='Space'){e.preventDefault();tryShoot();} });
+window.addEventListener('keyup',   e=>{ keys[e.code]=false; });
+canvas.addEventListener('click', ()=>{ if(active) tryShoot(); });
+canvas.addEventListener('touchstart', e=>{ e.preventDefault(); if(active) tryShoot(); }, {passive:false});
+
+// Mobile buttons
+function pressBtn(id, cb) {
+  const el = document.getElementById(id);
+  ['touchstart','mousedown'].forEach(ev=>el.addEventListener(ev, e=>{ e.preventDefault(); cb(true); }, {passive:false}));
+  ['touchend','mouseup'].forEach(ev=>el.addEventListener(ev, e=>{ e.preventDefault(); cb(false); }, {passive:false}));
+}
+const mobileState = {up:false, down:false};
+pressBtn('btnUp',    v=>mobileState.up=v);
+pressBtn('btnDown',  v=>mobileState.down=v);
+document.getElementById('btnShoot').addEventListener('touchstart', e=>{ e.preventDefault(); tryShoot(); }, {passive:false});
+document.getElementById('btnShoot').addEventListener('click', ()=>tryShoot());
+
+function tryShoot() {
+  if (!active || ship.shootCd > 0) return;
+  ship.shootCd = 14;
+  bullets.push({ x: ship.x + ship.w, y: ship.y + ship.h/2, vx: 12 + level*1.2, r: 7 });
+  spawnParticles(ship.x + ship.w, ship.y + ship.h/2, '#4ade80', 4);
+}
+
+// ── Enemy types ────────────────────────────────────────────────
+const ENEMY_TYPES = [
+  { id:'cloud',    emoji:'☁',  col:'#94a3b8', hp:2, score:50,  sz:55, speed:2.0 },
+  { id:'smoke',    emoji:'💨', col:'#78716c', hp:1, score:30,  sz:40, speed:2.8 },
+  { id:'factory',  emoji:'🏭', col:'#f43f5e', hp:4, score:120, sz:60, speed:1.4 },
+  { id:'barrel',   emoji:'☢', col:'#facc15', hp:2, score:80,  sz:42, speed:2.2 },
+  { id:'car',      emoji:'🚗', col:'#64748b', hp:3, score:90,  sz:50, speed:2.5 },
+];
+
+function spawnEnemy() {
+  const types = ENEMY_TYPES.slice(0, Math.min(ENEMY_TYPES.length, 2 + level));
+  const t = types[Math.floor(Math.random() * types.length)];
+  enemies.push({
+    ...t, x: W + 60,
+    y: H * 0.08 + Math.random() * H * 0.78,
+    hp: t.hp + Math.floor(level/2),
+    speed: t.speed + level * 0.25,
+    pulse: Math.random() * Math.PI * 2
+  });
+}
+
+// ── Particles ──────────────────────────────────────────────────
+function spawnParticles(x, y, col, n=12) {
+  for(let i=0;i<n;i++) particles.push({
+    x, y, vx:(Math.random()-.5)*8, vy:(Math.random()-.5)*8,
+    r:3+Math.random()*4, life:1, col
+  });
+}
+
+// ── Draw helpers ───────────────────────────────────────────────
+function drawShip(x, y) {
+  ctx.save(); ctx.translate(x, y);
+  // Glow
+  ctx.shadowBlur=18; ctx.shadowColor='#4ade80';
+  // Body
+  ctx.fillStyle='#22c55e';
+  ctx.beginPath();
+  ctx.moveTo(ship.w/2,0); ctx.lineTo(-ship.w/2,-ship.h/2);
+  ctx.lineTo(-ship.w/3,0); ctx.lineTo(-ship.w/2,ship.h/2);
+  ctx.closePath(); ctx.fill();
+  // Cockpit
+  ctx.fillStyle='#86efac';
+  ctx.beginPath(); ctx.ellipse(ship.w*0.1,0, ship.w*0.22, ship.h*0.28,0,0,Math.PI*2); ctx.fill();
+  // Leaf wing accent
+  ctx.fillStyle='#4ade80';
+  ctx.beginPath(); ctx.ellipse(-ship.w*0.1, -ship.h*0.28, ship.w*0.28, ship.h*0.14,-.3,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-ship.w*0.1,  ship.h*0.28, ship.w*0.28, ship.h*0.14, .3,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.restore();
+}
+
+function drawEnemy(e) {
+  e.pulse += 0.06;
+  const bob = Math.sin(e.pulse) * 4;
+  ctx.save(); ctx.translate(e.x, e.y + bob);
+  ctx.shadowBlur=14; ctx.shadowColor=e.col;
+  // Circle bg
+  ctx.fillStyle = e.col + '44';
+  ctx.beginPath(); ctx.arc(0,0,e.sz/2+4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = e.col + 'bb';
+  ctx.beginPath(); ctx.arc(0,0,e.sz/2,0,Math.PI*2); ctx.fill();
+  // Emoji
+  ctx.shadowBlur=0;
+  ctx.font=`${e.sz*0.62}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(e.emoji, 0, 2);
+  // HP bar
+  ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(-e.sz/2, -e.sz/2-14, e.sz, 8);
+  ctx.fillStyle='#4ade80'; ctx.fillRect(-e.sz/2, -e.sz/2-14, e.sz*(e.hp/ENEMY_TYPES.find(t=>t.id===e.id).hp), 8);
+  ctx.shadowBlur=0;
+  ctx.restore();
+}
+
+// ── Save score ─────────────────────────────────────────────────
+async function saveScore() {
+  const email = localStorage.getItem('userEmail');
+  if (email && score > 0) {
+    try {
+      await fetch('/api/users/addPoints', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email, points_to_add: score, game_name:'Climate Guardian' })
+      });
+    } catch(e) { console.error(e); }
+  }
+}
+
+// ── Game Over / Win ─────────────────────────────────────────────
+async function endGame(won) {
+  active = false;
+  await saveScore();
+  const ov = document.getElementById('overlay');
+  ov.style.display='flex'; ov.style.opacity='1';
+  document.getElementById('oTitle').innerText = won ? '🏆 PLANET SAVED!' : '💔 EARTH NEEDS YOU';
+  document.getElementById('oSub').innerHTML = won
+    ? `Amazing! You defeated all pollution waves!<br><br>Final Score: <b style="color:#4ade80;font-size:1.8rem;">${score}</b><br><small style="opacity:.6">Great eco-warriors protect our planet every day!</small>`
+    : `The pollution overwhelmed the planet's defenses.<br><br>Score: <b style="color:#4ade80;font-size:1.8rem;">${score}</b><br><small style="opacity:.6">Keep learning and fighting for a greener Earth!</small>`;
+  const existing = document.getElementById('restartBtn');
+  if (!existing) {
+    const btn = document.createElement('button');
+    btn.id='restartBtn'; btn.className='btn-play';
+    btn.innerText = won ? 'PLAY AGAIN' : 'TRY AGAIN';
+    btn.style.marginTop='14px';
+    btn.onclick = () => { ov.style.opacity='0'; setTimeout(()=>{ ov.style.display='none'; startGame(); }, 400); };
+    document.querySelector('.modal').appendChild(btn);
+  } else { existing.innerText = won ? 'PLAY AGAIN' : 'TRY AGAIN'; }
+}
+
+// ── Start ───────────────────────────────────────────────────────
+function startGame() {
+  active=true; score=0; health=100; level=1; frame=0; spawnTimer=0;
+  bullets=[]; enemies=[]; particles=[];
+  ship.y = H/2; ship.vy=0; ship.shootCd=0;
+  document.getElementById('scoreEl').innerText='0';
+  document.getElementById('levelEl').innerText='1';
+  document.getElementById('healthFill').style.width='100%';
+  const ov=document.getElementById('overlay');
+  ov.style.opacity='0'; setTimeout(()=>ov.style.display='none',500);
+  requestAnimationFrame(loop);
+}
+
+// ── Main Loop ───────────────────────────────────────────────────
+function loop() {
+  if (!active) return;
+  frame++;
+
+  // ── Background ──
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#020617'); bg.addColorStop(.5,'#0f2027'); bg.addColorStop(1,'#1a3a2a');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  // Stars
+  stars.forEach(s=>{ s.x-=s.s; if(s.x<0)s.x=W; ctx.globalAlpha=.6; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill(); });
+  ctx.globalAlpha=1;
+
+  // Scrolling ground strip
+  ctx.fillStyle='rgba(22,101,52,0.25)';
+  ctx.fillRect(0, H*0.93, W, H*0.07);
+
+  // ── Ship movement ──
+  const spd = ship.speed + level * 0.3;
+  if ((keys['ArrowUp']   || keys['KeyW']) || mobileState.up)   ship.vy = Math.max(ship.vy - 1.2, -spd*1.6);
+  if ((keys['ArrowDown'] || keys['KeyS']) || mobileState.down) ship.vy = Math.min(ship.vy + 1.2,  spd*1.6);
+  ship.vy *= 0.88;
+  ship.y   = Math.max(ship.h/2, Math.min(H - ship.h/2, ship.y + ship.vy));
+  if (ship.shootCd > 0) ship.shootCd--;
+
+  drawShip(ship.x, ship.y);
+
+  // Engine trail
+  if (frame%2===0) particles.push({ x:ship.x-ship.w/2, y:ship.y+(Math.random()-.5)*18, vx:-3-Math.random()*3, vy:(Math.random()-.5)*2, r:4, life:.9, col:'#4ade80' });
+
+  // ── Bullets ──
+  bullets = bullets.filter(b => {
+    b.x += b.vx;
+    ctx.save();
+    ctx.shadowBlur=14; ctx.shadowColor='#4ade80';
+    ctx.fillStyle='#4ade80';
+    ctx.beginPath(); ctx.ellipse(b.x,b.y, b.r*1.8,b.r*.7,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+    return b.x < W + 20;
+  });
+
+  // ── Enemies ──
+  const spawnRate = Math.max(55, 110 - level * 12);
+  if (frame % spawnRate === 0) spawnEnemy();
+
+  enemies = enemies.filter(e => {
+    e.x -= e.speed;
+    drawEnemy(e);
+
+    // Bullet hit
+    let hit=false;
+    bullets = bullets.filter(b=>{
+      const dx=b.x-e.x, dy=b.y-e.y;
+      if (Math.sqrt(dx*dx+dy*dy) < e.sz/2+b.r) {
+        e.hp--; hit=true;
+        spawnParticles(e.x,e.y,e.col,6);
+        return false;
+      }
+      return true;
+    });
+
+    if (e.hp<=0) {
+      score += e.score; level = 1+Math.floor(score/500);
+      document.getElementById('scoreEl').innerText=score;
+      document.getElementById('levelEl').innerText=level;
+      spawnParticles(e.x,e.y,e.col,18);
+      showFact(ECO_FACTS[Math.floor(Math.random()*ECO_FACTS.length)]);
+      return false;
+    }
+
+    // Reach ship
+    if (e.x < ship.x + ship.w*0.4) {
+      health -= 12; spawnParticles(ship.x,ship.y,'#f43f5e',10);
+      document.getElementById('healthFill').style.width = Math.max(0,health)+'%';
+      if (health<=0) { endGame(false); return false; }
+      return false;
+    }
+    return e.x > -80;
+  });
+
+  // Win condition
+  if (score >= 3000 && enemies.length===0) { endGame(true); return; }
+
+  // ── Particles ──
+  particles = particles.filter(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.life-=0.025; p.r*=0.97;
+    ctx.globalAlpha=p.life;
+    ctx.fillStyle=p.col;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+    return p.life>0;
+  });
+
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

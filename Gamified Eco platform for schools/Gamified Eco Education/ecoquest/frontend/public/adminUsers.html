@@ -1,0 +1,206 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+  // Auto API base: works both via file:// and http://localhost:4000
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>User Management | EcoQuest Admin</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    .user-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 20px 25px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 15px;
+      transition: 0.2s;
+    }
+    .user-card:hover { background: rgba(255,255,255,0.07); }
+    .u-avatar {
+      width: 50px; height: 50px; border-radius: 15px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 1.1rem; color: #000; flex-shrink: 0;
+    }
+    .u-info { flex: 1; min-width: 150px; }
+    .u-name { font-weight: 800; font-size: 1.05rem; }
+    .u-email { font-size: 0.8rem; opacity: 0.5; margin-top: 2px; }
+    .u-meta { font-size: 0.75rem; opacity: 0.4; margin-top: 3px; text-transform: uppercase; letter-spacing: 1px; }
+    .u-stat { text-align: center; min-width: 80px; }
+    .u-stat-val { font-size: 1.4rem; font-weight: 900; }
+    .u-stat-lbl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.5; margin-top: 2px; }
+    .verified { color: #4ade80; }
+    .unverified { color: #f43f5e; }
+    .search-row {
+      display: flex; gap: 12px; margin: 25px 0 20px; flex-wrap: wrap;
+    }
+    .search-row input, .search-row select {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 15px; padding: 12px 20px; color: #fff;
+      font-family: 'Outfit', sans-serif; font-size: 0.95rem; flex: 1; min-width: 180px;
+    }
+    .page-nav { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 30px; }
+    .page-btn {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50px; padding: 10px 25px; color: #fff; cursor: pointer;
+      font-family: 'Outfit', sans-serif; font-weight: 700; transition: 0.2s;
+    }
+    .page-btn:hover { background: rgba(255,255,255,0.12); }
+    .page-btn:disabled { opacity: 0.3; cursor: default; }
+    .back-nav {
+      position: fixed; top: 40px; left: 40px; z-index: 100;
+      color: #fff; text-decoration: none; font-weight: 700;
+      display: flex; align-items: center; gap: 10px; opacity: 0.6; transition: 0.3s;
+    }
+    .back-nav:hover { opacity: 1; transform: translateX(-5px); }
+    .total-counter { font-size: 0.85rem; opacity: 0.5; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div class="vines"></div>
+  <div class="forest-bg" id="forest"></div>
+  <a href="admin.html" class="back-nav">← Admin Panel</a>
+  <div class="dashboard-wrapper" style="padding-top: 80px;">
+    <h1 id="pageTitle" style="font-size:3rem; font-weight:900; letter-spacing:-2px; margin:0;"></h1>
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="Search by name or email..." oninput="filterCards()" />
+      <select id="schoolFilter" onchange="loadUsers()">
+        <option value="">All Schools</option>
+      </select>
+    </div>
+    <div id="totalCounter" class="total-counter"></div>
+    <div id="userList"></div>
+    <div class="page-nav">
+      <button class="page-btn" id="prevBtn" onclick="changePage(-1)">← Prev</button>
+      <span id="pageInfo" style="opacity:0.6; font-weight:700;"></span>
+      <button class="page-btn" id="nextBtn" onclick="changePage(1)">Next →</button>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const role = params.get('role') || 'student';
+    let currentPage = 1;
+    const limit = 20;
+    let totalUsers = 0;
+    let allCards = [];
+
+    if (!localStorage.getItem('userEmail') || localStorage.getItem('userRole') !== 'admin') {
+      location.href = 'login.html';
+    }
+
+    const roleEmoji = { student: '🧑‍🎓', teacher: '👩‍🏫' };
+    const roleColors = { student: 'linear-gradient(135deg,#4ade80,#06b6d4)', teacher: 'linear-gradient(135deg,#f59e0b,#ef4444)' };
+    document.getElementById('pageTitle').innerHTML = `${roleEmoji[role] || '👤'} ${role === 'teacher' ? 'Teachers' : 'Students'}`;
+
+    async function loadSchools() {
+      try {
+        const res = await fetch('/api/test-db');
+        const data = await res.json();
+        const sel = document.getElementById('schoolFilter');
+        (data.schools || []).forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.school_code;
+          opt.innerText = s.school_code;
+          sel.appendChild(opt);
+        });
+      } catch(e) {}
+    }
+
+    async function loadUsers() {
+      currentPage = 1;
+      fetchUsers();
+    }
+
+    async function fetchUsers() {
+      const school = document.getElementById('schoolFilter').value;
+      let url = `/api/admin/users?role=${role}&page=${currentPage}&limit=${limit}`;
+      if (school) url += `&school_code=${school}`;
+      document.getElementById('userList').innerHTML = '<div style="text-align:center;padding:40px;opacity:0.4;">Loading...</div>';
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        totalUsers = data.total || 0;
+        allCards = data.users || [];
+        renderCards(allCards);
+        document.getElementById('totalCounter').innerText = `Total: ${totalUsers} ${role}s`;
+        const totalPages = Math.ceil(totalUsers / limit);
+        document.getElementById('pageInfo').innerText = `Page ${currentPage} of ${Math.max(1, totalPages)}`;
+        document.getElementById('prevBtn').disabled = currentPage <= 1;
+        document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+      } catch(e) {
+        document.getElementById('userList').innerHTML = '<div style="text-align:center;padding:40px;opacity:0.4;">Failed to load users.</div>';
+      }
+    }
+
+    function renderCards(users) {
+      const list = document.getElementById('userList');
+      if (!users.length) {
+        list.innerHTML = '<div style="text-align:center;padding:60px;opacity:0.4;">No users found.</div>';
+        return;
+      }
+      list.innerHTML = '';
+      users.forEach(u => {
+        const initials = u.full_name ? u.full_name.split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase() : '??';
+        const joined = u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A';
+        const card = document.createElement('div');
+        card.className = 'user-card';
+        card.dataset.name = (u.full_name || '').toLowerCase();
+        card.dataset.email = (u.email || '').toLowerCase();
+        card.innerHTML = `
+          <div class="u-avatar" style="background:${roleColors[role]}">${initials}</div>
+          <div class="u-info">
+            <div class="u-name">${u.full_name || 'Unknown'}</div>
+            <div class="u-email">${u.email || 'N/A'} ${u.confirmed ? '<span class="verified">✅</span>' : '<span class="unverified">❌</span>'}</div>
+            <div class="u-meta">${u.school_code || '—'} • ${u.class_name || u.subject || '—'} • Joined: ${joined}</div>
+          </div>
+          <div class="u-stat"><div class="u-stat-val" style="color:#affc41">${(u.points||0).toLocaleString()}</div><div class="u-stat-lbl">Points</div></div>
+          <div class="u-stat"><div class="u-stat-val" style="color:#f97316">${u.streak||0}</div><div class="u-stat-lbl">Streak</div></div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function filterCards() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      if (!q) { renderCards(allCards); return; }
+      const filtered = allCards.filter(u =>
+        (u.full_name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q)
+      );
+      renderCards(filtered);
+    }
+
+    function changePage(dir) {
+      const totalPages = Math.ceil(totalUsers / limit);
+      currentPage = Math.max(1, Math.min(totalPages, currentPage + dir));
+      fetchUsers();
+    }
+
+    const forest = document.getElementById('forest');
+    for (let i = 0; i < Math.floor(window.innerWidth/80); i++) {
+      const t = document.createElement('div');
+      t.style.cssText = `position:absolute;bottom:0;left:${Math.random()*100}%;opacity:0.05;transform:scale(${0.5+Math.random()})`;
+      t.innerHTML = `<svg width="80" height="120"><path d="M40 10 L10 100 L70 100 Z" fill="#fff"/></svg>`;
+      forest.appendChild(t);
+    }
+
+    window.addEventListener('load', () => { loadSchools(); fetchUsers(); });
+  </script>
+</body>
+</html>
+
+

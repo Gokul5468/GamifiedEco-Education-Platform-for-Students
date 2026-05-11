@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+  (function(){
+    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+    if (!base) return;
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
+  <meta charset="utf-8" />
+  <title>Eco Runner | EcoQuest</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --sky: #a2d2ff;
+      --nature: #4ade80;
+      --nature-dark: #166534;
+      --accent: #ffbe0b;
+      --toxic: #f43f5e;
+      --glass: rgba(0, 0, 0, 0.4);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0; padding: 0;
+      font-family: 'Outfit', sans-serif;
+      background: #000;
+      overflow: hidden;
+      touch-action: none;
+      color: #fff;
+    }
+
+    canvas {
+      display: block;
+      position: fixed;
+      top: 0; left: 0;
+      z-index: 1;
+    }
+
+    /* HUD */
+    .hud {
+      position: fixed;
+      top: 16px; left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 16px;
+      pointer-events: none;
+      z-index: 100;
+      animation: fadeInHUD 1s ease-out;
+    }
+
+    @keyframes fadeInHUD {
+      from { transform: translateY(-30px); opacity: 0; }
+      to   { transform: translateY(0);     opacity: 1; }
+    }
+
+    .stat-box {
+      background: var(--glass);
+      backdrop-filter: blur(15px);
+      padding: 10px 20px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent);
+      font-weight: 800;
+      margin-bottom: 2px;
+    }
+
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    /* Mobile jump button */
+    #mobileJump {
+      display: none;
+      position: fixed;
+      bottom: 30px; right: 30px;
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: var(--nature);
+      border: 3px solid rgba(255,255,255,0.3);
+      color: #000;
+      font-size: 2rem;
+      font-weight: 900;
+      cursor: pointer;
+      z-index: 200;
+      box-shadow: 0 8px 30px rgba(74,222,128,0.5);
+      touch-action: manipulation;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s;
+    }
+    #mobileJump:active { transform: scale(0.9); }
+
+    /* Overlay / Modal */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,5,15,0.85);
+      backdrop-filter: blur(25px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.5s;
+    }
+
+    .modal {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 50px 40px;
+      border-radius: 40px;
+      max-width: 480px;
+      width: 92%;
+      text-align: center;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+    }
+
+    .mega-title {
+      font-size: 3rem;
+      font-weight: 900;
+      margin-bottom: 15px;
+      letter-spacing: -3px;
+      background: linear-gradient(to bottom, #fff 0%, var(--nature) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 20px rgba(74,222,128,0.4));
+    }
+
+    .btn-action {
+      background: var(--accent);
+      color: #000;
+      padding: 18px 40px;
+      border-radius: 100px;
+      font-size: 1.3rem;
+      font-weight: 900;
+      border: none;
+      cursor: pointer;
+      transition: 0.3s;
+      box-shadow: 0 15px 40px rgba(255,190,11,0.3);
+      width: 100%;
+      margin-top: 25px;
+    }
+
+    .btn-action:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 20px 50px rgba(255,190,11,0.5);
+    }
+
+    .btn-quit {
+      background: transparent;
+      color: #fff;
+      margin-top: 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 12px;
+      border-radius: 100px;
+      width: 100%;
+      cursor: pointer;
+      opacity: 0.6;
+      font-weight: 700;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem;
+    }
+
+    /* Responsive breakpoints */
+    @media (max-width: 600px) {
+      .stat-value   { font-size: 1.3rem; }
+      .stat-label   { font-size: 0.55rem; }
+      .stat-box     { padding: 7px 12px; border-radius: 14px; }
+      .mega-title   { font-size: 2.2rem; letter-spacing: -1px; }
+      .btn-action   { font-size: 1.1rem; padding: 14px 30px; }
+      .modal        { padding: 30px 20px; border-radius: 28px; }
+      #mobileJump   { display: flex; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="hud">
+    <div class="stat-box">
+      <div class="stat-label">Best Run</div>
+      <div class="stat-value" id="highScore">0000</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Eco Energy</div>
+      <div class="stat-value" id="currentScore">0000</div>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Mobile jump button (visible only on small screens) -->
+  <button id="mobileJump" ontouchstart="e => { e.preventDefault(); jump(); }" onclick="jump()">🌿</button>
+
+  <div id="overlay" class="overlay">
+    <div class="modal">
+      <div class="mega-title">ECO RUNNER</div>
+      <p id="subtext" style="opacity:0.7;font-size:1.1rem;line-height:1.7;">
+        Nature is retreating. Sprint through the wilderness, harvest kinetic energy, and leap over industrial waste!
+      </p>
+      <button class="btn-action" onclick="initGame()">PLAY NOW</button>
+      <button class="btn-quit" onclick="location.href='../games.html'">LEAVE FOREST</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas  = document.getElementById('gameCanvas');
+    const ctx     = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const scoreEl = document.getElementById('currentScore');
+    const highEl  = document.getElementById('highScore');
+
+    let w, h;
+    let active = false;
+    let score  = 0;
+    let high   = parseInt(localStorage.getItem('eco_runner_high') || 0);
+    let time   = 0;
+
+    // Responsive helpers
+    const isMobile = () => window.innerWidth < 600;
+
+    const player = {
+      x: 0, y: 0,
+      get w() { return isMobile() ? 55 : 75; },
+      get h() { return isMobile() ? 55 : 75; },
+      dy: 0,
+      get gravity()   { return isMobile() ? 0.65 : 0.8;  },
+      get jumpForce() { return isMobile() ? -14  : -18; },
+      isGrounded: false,
+      tilt: 0
+    };
+
+    let layers   = [];
+    let entities = [];
+    let particles = [];
+
+    function groundY() { return h - Math.round(h * 0.19); }
+
+    function resize() {
+      w = canvas.width  = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      player.x = w * 0.15;
+      player.y = groundY();
+      initLayers();
+    }
+
+    function initLayers() {
+      layers = [];
+      layers.push({ speed: 0.15, items: Array(5).fill(0).map(() => ({ x: Math.random() * w, y: Math.random() * h * 0.4, w: 180 + Math.random() * 140, h: 55, col: '#fff' })) });
+      layers.push({ speed: 0.4,  items: Array(4).fill(0).map((_, i) => ({ x: i * w / 3, y: h - h * 0.45, w: w * 0.8, h: h * 0.35, col: '#7dcfb6' })) });
+      layers.push({ speed: 1.2,  items: Array(7).fill(0).map((_, i) => ({ x: i * (w / 6), y: h - h * 0.22, w: 110, h: 230, type: 'tree' })) });
+      layers.push({ speed: 5.0,  items: Array(22).fill(0).map((_, i) => ({ x: i * 150, y: groundY() + (isMobile() ? 55 : 75), w: 152, h: h * 0.15, col: '#166534' })) });
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    highEl.innerText = high.toString().padStart(4, '0');
+
+    function initGame() {
+      active = true;
+      score  = 0;
+      entities  = [];
+      particles = [];
+      player.y  = groundY();
+      player.dy = 0;
+      player.isGrounded = true;
+      overlay.style.opacity    = '0';
+      overlay.style.pointerEvents = 'none';
+      setTimeout(() => overlay.style.visibility = 'hidden', 500);
+      requestAnimationFrame(gameLoop);
+    }
+
+    async function savePoints() {
+      const email = localStorage.getItem('userEmail');
+      if (email && score > 0) {
+        try {
+          await fetch('/api/users/addPoints', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, points_to_add: score, game_name: 'Eco Runner' })
+          });
+        } catch(e) { console.error('Score save failed:', e); }
+      }
+    }
+
+    function showOverlay(title, body, btnLabel) {
+      overlay.style.visibility = 'visible';
+      overlay.style.opacity    = '1';
+      overlay.style.pointerEvents = 'auto';
+      document.querySelector('.mega-title').innerText = title;
+      document.getElementById('subtext').innerHTML    = body;
+      document.querySelector('.btn-action').innerText = btnLabel;
+      if (!document.getElementById('dash-btn')) {
+        const btn = document.createElement('button');
+        btn.id = 'dash-btn'; btn.className = 'btn-quit';
+        btn.style.marginTop = '12px'; btn.style.background = 'var(--nature-dark)';
+        btn.innerText = 'RETURN TO DASHBOARD';
+        btn.onclick = () => location.href = '../student.html';
+        document.querySelector('.modal').appendChild(btn);
+      }
+    }
+
+    async function gameWin() {
+      active = false; await savePoints();
+      showOverlay('MISSION SUCCESS',
+        `Forest traversed! Energy harvested.<br><br>Energy: <span style="font-size:2.4rem;color:var(--accent);font-weight:900;">${score}</span>`,
+        'PLAY AGAIN');
+    }
+
+    async function gameOver() {
+      active = false; await savePoints();
+      if (score > high) {
+        high = score; localStorage.setItem('eco_runner_high', high);
+        highEl.innerText = high.toString().padStart(4, '0');
+      }
+      showOverlay('POWER CUT',
+        `You hit industrial pollution!<br><br>Energy: <span style="font-size:2.4rem;color:var(--accent);font-weight:900;">${score}</span>`,
+        'TRY AGAIN');
+    }
+
+    function drawPlayer() {
+      const pw = player.w, ph = player.h;
+      ctx.save();
+      ctx.translate(player.x + pw / 2, player.y + ph / 2);
+      player.tilt = player.dy * 0.02;
+      ctx.rotate(player.tilt);
+
+      const bounce = player.isGrounded ? Math.sin(time * 0.2) * 4 : 0;
+
+      // Body
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath();
+      ctx.roundRect(-pw / 2, -ph / 2 + bounce, pw, ph, 16);
+      ctx.fill();
+
+      // Eyes
+      const ex = pw * 0.2, ey = -ph * 0.2 + bounce, er = pw * 0.11;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(ex,        ey, er, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + pw*0.35, ey, er, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#000';
+      const blink = Math.sin(time * 0.1) * 2;
+      ctx.beginPath(); ctx.arc(ex + blink,             ey, er*0.5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + pw*0.35 + blink,   ey, er*0.5, 0, Math.PI*2); ctx.fill();
+
+      // Legs
+      if (player.isGrounded) {
+        ctx.fillStyle = '#166534';
+        ctx.fillRect(-pw*0.25, ph/2 - 10, pw*0.22, Math.sin(time*0.3)*12 + 14);
+        ctx.fillRect( pw*0.05, ph/2 - 10, pw*0.22, Math.cos(time*0.3)*12 + 14);
+      }
+      ctx.restore();
+
+      // Trail
+      if (player.isGrounded && Math.random() > 0.5) {
+        particles.push({ x: player.x, y: player.y + ph, vx: -2 - Math.random()*3, vy: -Math.random()*2, size: 4, life: 1, col: 'rgba(255,255,255,0.3)' });
+      }
+    }
+
+    function spawnEntity() {
+      const type = Math.random() > 0.4 ? 'obstacle' : 'energy';
+      const ew = type === 'obstacle' ? (isMobile() ? 45 : 60) : (isMobile() ? 30 : 40);
+      entities.push({
+        type, x: w + 100,
+        y: type === 'obstacle' ? groundY() - ew + 5 : groundY() - 140 - Math.random() * 120,
+        w: ew, h: ew, pulse: 0
+      });
+    }
+
+    function gameLoop() {
+      if (!active) return;
+      time++;
+
+      // Sky gradient
+      const sky = ctx.createLinearGradient(0, 0, 0, h);
+      sky.addColorStop(0, '#0f2027'); sky.addColorStop(0.5, '#203a43'); sky.addColorStop(1, '#2c5364');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+
+      // Parallax layers
+      layers.forEach(layer => {
+        layer.items.forEach(item => {
+          item.x -= layer.speed;
+          if (item.x + item.w < 0) item.x = w;
+          if (item.type === 'tree') {
+            ctx.fillStyle = '#064e3b';
+            ctx.beginPath();
+            ctx.moveTo(item.x, item.y + item.h);
+            ctx.lineTo(item.x + item.w / 2, item.y);
+            ctx.lineTo(item.x + item.w, item.y + item.h);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = item.col || '#2d4a3e';
+            ctx.beginPath();
+            ctx.roundRect(item.x, item.y, item.w, item.h, 30);
+            ctx.fill();
+          }
+        });
+      });
+
+      // Physics
+      player.dy += player.gravity;
+      player.y  += player.dy;
+      const gy = groundY();
+      if (player.y > gy) { player.y = gy; player.dy = 0; player.isGrounded = true; }
+
+      drawPlayer();
+
+      // Spawn
+      if (time % Math.max(28, 80 - Math.floor(score / 200)) === 0) spawnEntity();
+
+      // Entities
+      const speed = 8 + score / 500;
+      entities = entities.filter(ent => {
+        ent.x -= speed; ent.pulse += 0.1;
+        ctx.save(); ctx.translate(ent.x, ent.y);
+        if (ent.type === 'obstacle') {
+          ctx.fillStyle = '#f43f5e';
+          ctx.beginPath(); ctx.roundRect(0, 0, ent.w, ent.h, 8); ctx.fill();
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+          ctx.strokeRect(5, 5, ent.w-10, ent.h-10);
+          ctx.fillStyle = '#fff';
+          ctx.font = `${ent.w*0.5}px Arial`; ctx.textAlign = 'center';
+          ctx.fillText('☠', ent.w/2, ent.h*0.72);
+        } else {
+          const s = 1 + Math.sin(ent.pulse) * 0.2;
+          ctx.scale(s, s);
+          const g = ctx.createRadialGradient(0,0,0, 0,0,ent.w/2);
+          g.addColorStop(0,'#fff'); g.addColorStop(1,'#ffbe0b');
+          ctx.fillStyle = g;
+          ctx.shadowBlur = 20; ctx.shadowColor = '#ffbe0b';
+          ctx.beginPath(); ctx.arc(0, 0, ent.w/2, 0, Math.PI*2); ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+        ctx.restore();
+
+        // Collision
+        const px = player.x + 10, py = player.y + 10;
+        const pw = player.w - 20, ph = player.h - 20;
+        if (ent.x < px+pw && ent.x+ent.w > px && ent.y < py+ph && ent.y+ent.h > py) {
+          if (ent.type === 'energy') {
+            score += 100; scoreEl.innerText = score.toString().padStart(4,'0');
+            for (let i=0; i<10; i++) particles.push({ x:ent.x, y:ent.y, vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10, size:4, life:1, col:'#ffbe0b' });
+            return false;
+          } else { gameOver(); }
+        }
+        return ent.x > -100;
+      });
+
+      // Particles
+      particles = particles.filter(p => {
+        p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.col;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        return p.life > 0;
+      });
+
+      if (active) {
+        score++;
+        scoreEl.innerText = score.toString().padStart(4,'0');
+        if (score >= 1500) gameWin();
+        else requestAnimationFrame(gameLoop);
+      }
+    }
+
+    function jump() {
+      if (player.isGrounded) {
+        player.dy = player.jumpForce;
+        player.isGrounded = false;
+      }
+    }
+
+    window.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); } });
+    window.addEventListener('mousedown', () => { if (active) jump(); });
+    window.addEventListener('touchstart', e => { e.preventDefault(); jump(); }, { passive: false });
+  </script>
+</body>
+</html>
