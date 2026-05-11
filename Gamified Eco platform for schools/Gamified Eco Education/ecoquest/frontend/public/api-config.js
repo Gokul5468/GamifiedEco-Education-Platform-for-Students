@@ -1,11 +1,10 @@
 // api-config.js — Auto-detects whether the app is opened as a file:// or via http server
 // Patches window.fetch so all relative /api/ calls always go to the correct backend URL.
 (function() {
-  const API_BASE = window.location.protocol === 'file:'
+  const API_BASE = (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:4000'
-    : '';
+    : 'https://ecoquest-backend-r0z8.onrender.com';
 
-  if (!API_BASE) return; // Already on server, no patching needed
 
   const _originalFetch = window.fetch.bind(window);
   window.fetch = function(url, options) {
