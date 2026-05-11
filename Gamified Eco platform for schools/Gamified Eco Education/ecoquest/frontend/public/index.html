@@ -3,17 +3,17 @@
 
 <head>
   <script>
-    // Auto API base: works both via file:// and http://localhost:4000
-    (function () {
-      var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
-      if (!base) return;
-      var _f = window.fetch.bind(window);
-      window.fetch = function (url, opts) {
-        if (typeof url === 'string' && url.startsWith('/')) url = base + url;
-        return _f(url, opts);
-      };
-    })();
-  </script>
+  (function(){
+    var base = (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+      ? 'http://localhost:4000' 
+      : 'https://ecoquest-backend-r0z8.onrender.com';
+    var _f = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.startsWith('/')) url = base + url;
+      return _f(url, opts);
+    };
+  })();
+</script>
   <meta charset="utf-8" />
   <title>EcoQuest — Embark on a Green Journey</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />

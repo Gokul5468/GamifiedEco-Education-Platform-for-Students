@@ -3,10 +3,10 @@
 
 <head>
 <script>
-  // Auto API base: works both via file:// and http://localhost:4000
   (function(){
-    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
-    if (!base) return;
+    var base = (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+      ? 'http://localhost:4000' 
+      : 'https://ecoquest-backend-r0z8.onrender.com';
     var _f = window.fetch.bind(window);
     window.fetch = function(url, opts) {
       if (typeof url === 'string' && url.startsWith('/')) url = base + url;
@@ -27,10 +27,10 @@
   <div class="dashboard-wrapper">
     <header class="header-premium">
 <script>
-  // Auto API base: works both via file:// and http://localhost:4000
   (function(){
-    var base = window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
-    if (!base) return;
+    var base = (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+      ? 'http://localhost:4000' 
+      : 'https://ecoquest-backend-r0z8.onrender.com';
     var _f = window.fetch.bind(window);
     window.fetch = function(url, opts) {
       if (typeof url === 'string' && url.startsWith('/')) url = base + url;
